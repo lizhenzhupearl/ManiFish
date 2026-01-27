@@ -932,6 +932,49 @@ class ManifoldFishAnalyzer:
         """Get material IDs grouped by all categories."""
         return {cat: self.get_ids_by_category(results, cat) for cat in CATEGORIES.keys()}
 
+    def get_indices_by_category(
+        self,
+        results: List[ManifoldFishResult],
+        category: str,
+    ) -> List[int]:
+        """
+        Get indices (positions in the original generated array) for a specific category.
+
+        Args:
+            results: Analysis results from analyze()
+            category: Category name (e.g., "frontier_fish", "fish_in_water")
+
+        Returns:
+            List of indices into the original generated embeddings array.
+
+        Example:
+            >>> results = analyzer.analyze(generated_embeddings, material_ids)
+            >>> frontier_indices = analyzer.get_indices_by_category(results, "frontier_fish")
+            >>> frontier_embeddings = generated_embeddings[frontier_indices]
+        """
+        return [r.index for r in results if r.category == category]
+
+    def get_all_indices_by_category(
+        self,
+        results: List[ManifoldFishResult],
+    ) -> Dict[str, List[int]]:
+        """
+        Get indices grouped by all categories.
+
+        Args:
+            results: Analysis results from analyze()
+
+        Returns:
+            Dictionary mapping category names to lists of indices.
+
+        Example:
+            >>> results = analyzer.analyze(generated_embeddings, material_ids)
+            >>> indices_by_cat = analyzer.get_all_indices_by_category(results)
+            >>> print(indices_by_cat["frontier_fish"])  # [3, 7, 12, ...]
+            >>> print(indices_by_cat["structural_hallucination"])  # [45, 89, ...]
+        """
+        return {cat: self.get_indices_by_category(results, cat) for cat in CATEGORIES.keys()}
+
     def get_results_by_category(
         self,
         results: List[ManifoldFishResult],
