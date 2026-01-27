@@ -64,6 +64,54 @@ generated materials:
    # gen_1: neighbors = [5, 23, 42, ...]
    # gen_2: neighbors = [789, 12, 445, ...]
 
+Getting Results by Category
+---------------------------
+
+Retrieve materials by their classification category:
+
+.. code-block:: python
+
+   # Get material IDs for a specific category
+   frontier_ids = analyzer.get_ids_by_category(results, "frontier_fish")
+   print(f"Frontier fish IDs: {frontier_ids}")
+
+   # Get IDs for all categories at once
+   ids_by_cat = analyzer.get_all_ids_by_category(results)
+   for category, ids in ids_by_cat.items():
+       print(f"{category}: {len(ids)} materials")
+
+   # Get indices (positions in original array) for a category
+   frontier_indices = analyzer.get_indices_by_category(results, "frontier_fish")
+   frontier_embeddings = generated_embeddings[frontier_indices]
+
+   # Get indices for all categories
+   indices_by_cat = analyzer.get_all_indices_by_category(results)
+   print(indices_by_cat["structural_hallucination"])  # [45, 89, ...]
+
+   # Get full result objects for detailed analysis
+   frontier_results = analyzer.get_results_by_category(results, "frontier_fish")
+   for r in frontier_results:
+       print(f"{r.material_id}: confidence={r.confidence:.2f}")
+
+**Available methods:**
+
+.. list-table::
+   :header-rows: 1
+   :widths: 40 60
+
+   * - Method
+     - Returns
+   * - ``get_ids_by_category(results, cat)``
+     - List of material IDs for one category
+   * - ``get_all_ids_by_category(results)``
+     - Dict of category → material IDs
+   * - ``get_indices_by_category(results, cat)``
+     - List of indices for one category
+   * - ``get_all_indices_by_category(results)``
+     - Dict of category → indices
+   * - ``get_results_by_category(results, cat)``
+     - List of full result objects
+
 API Reference
 -------------
 

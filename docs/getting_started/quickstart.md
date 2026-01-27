@@ -122,14 +122,36 @@ analyzer.export_results(results, "analysis_results.csv")
 df = analyzer.results_to_dataframe(results)
 ```
 
-## Step 7: Filter by Category
+## Step 7: Get Results by Category
+
+```python
+# Get material IDs by category
+frontier_ids = analyzer.get_ids_by_category(results, "frontier_fish")
+print(f"Frontier fish: {frontier_ids}")
+
+# Get indices (positions in original array) by category
+frontier_indices = analyzer.get_indices_by_category(results, "frontier_fish")
+frontier_embeddings = generated_embeddings[frontier_indices]
+
+# Get all categories at once
+indices_by_cat = analyzer.get_all_indices_by_category(results)
+for cat, indices in indices_by_cat.items():
+    if len(indices) > 0:
+        print(f"{cat}: {len(indices)} materials")
+```
+
+## Step 8: Prioritize for DFT Validation
 
 ```python
 # Get high-priority structures for DFT validation
-frontier = [r for r in results if r.category == "frontier_fish"]
-adventurous = [r for r in results if r.category == "adventurous_fish"]
+frontier_indices = analyzer.get_indices_by_category(results, "frontier_fish")
+adventurous_indices = analyzer.get_indices_by_category(results, "adventurous_fish")
 
-print(f"Priority for DFT: {len(frontier) + len(adventurous)} structures")
+priority_indices = frontier_indices + adventurous_indices
+print(f"Priority for DFT: {len(priority_indices)} structures")
+
+# Get embeddings for priority structures
+priority_embeddings = generated_embeddings[priority_indices]
 ```
 
 ## Next Steps
