@@ -1,28 +1,58 @@
 ManiFish Documentation
 ======================
 
-**ManiFish** is a unified manifold framework for cross-MLIP materials discovery.
-It provides tools for evaluating and comparing AI-generated crystal structures
-across different Machine Learning Interatomic Potentials (MLIPs).
+**Unified Manifold Framework for Cross-MLIP Materials Discovery**
+
+ManiFish provides tools for evaluating and comparing AI-generated crystal structures
+across different Machine Learning Interatomic Potentials (MLIPs) using manifold-based analysis.
+
+.. image:: images/manifish_clean.png
+   :width: 600
+   :alt: ManiFish Framework Overview
+   :align: center
 
 Key Features
 ------------
 
-- **ManifoldFishAnalyzer**: 7-category classifier for generated structures
-- **Platonic Representation**: Cross-MLIP comparison using anchor-based projection
-- **Spatial Metrics**: LDS, CDS, SRSS, RMSC for stability prediction
-- **Aggregation Utilities**: Convert atom-level to material-level embeddings
-- **Ensemble Analysis**: Multi-MLIP evaluation framework
+.. grid:: 2
 
-Quick Start
------------
+   .. grid-item-card:: 7-Category Fish Classifier
+      :link: api/fish_analyzer
+      :link-type: doc
+
+      Classify generated structures into 7 categories based on their position
+      relative to the reference manifold: from "Fish in Water" (reliable) to
+      "Structural Hallucination" (likely unphysical).
+
+   .. grid-item-card:: Cross-MLIP Comparison
+      :link: concepts/index
+      :link-type: doc
+
+      Project embeddings from different MLIPs (MACE, CHGNet, ORB, SevenNet)
+      into a common anchor-based "Platonic" space for direct comparison.
+
+   .. grid-item-card:: Spatial Metrics
+      :link: api/spatial_metrics
+      :link-type: doc
+
+      Analyze local manifold structure with LDS, CDS, SRSS, and RMSC metrics
+      for improved stability prediction.
+
+   .. grid-item-card:: Aggregation Utilities
+      :link: api/aggregation
+      :link-type: doc
+
+      Convert atom-level MLIP embeddings to material-level representations
+      using mean, weighted, or other pooling methods.
+
+Quick Example
+-------------
 
 .. code-block:: python
 
    from manifish import (
        ManifoldFishAnalyzer,
        aggregate_atom_embeddings,
-       aggregate_by_material_id,
    )
 
    # Aggregate atom embeddings to material level
@@ -39,49 +69,100 @@ Quick Start
    results = analyzer.analyze(generated_embeddings, generated_ids)
    analyzer.print_summary(results)
 
-   # Print neighbors for materials
-   neighbor_indices = analyzer.print_neighbors(generated_embeddings, generated_ids)
+   # Find neighbors for each generated material
+   neighbor_indices = analyzer.print_neighbors(generated_embeddings)
 
-Installation
-------------
+The Seven Fish Categories
+-------------------------
 
-.. code-block:: bash
+.. list-table::
+   :header-rows: 1
+   :widths: 20 45 15 20
 
-   pip install manifish
-
-Or from source:
-
-.. code-block:: bash
-
-   git clone https://github.com/lizhenzhupearl/ManiFish.git
-   cd ManiFish
-   pip install -e .
+   * - Category
+     - Description
+     - Risk
+     - Action
+   * - Redundant Fish
+     - Deep inside manifold, dense region
+     - Very Low
+     - Skip (redundant)
+   * - Fish in Water
+     - Inside manifold, normal density
+     - Low
+     - Standard validation
+   * - Frontier Fish
+     - Inside manifold, sparse region
+     - Low-Medium
+     - Priority for DFT
+   * - Edge Fish
+     - At manifold boundary
+     - Medium
+     - Careful validation
+   * - Adventurous Fish
+     - Slightly outside manifold
+     - Medium-High
+     - High priority DFT
+   * - Geometric Atypical
+     - High local PCA residual
+     - Medium-High
+     - Investigate geometry
+   * - Structural Hallucination
+     - Far outside manifold
+     - Very High
+     - Reject
 
 .. toctree::
    :maxdepth: 2
-   :caption: User Guide
+   :caption: Getting Started
+   :hidden:
 
-   installation
-   guide/index
+   getting_started/installation
+   getting_started/quickstart
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Tutorials
+   :hidden:
+
    tutorials/basic_usage
+   tutorials/atom_to_material
+   tutorials/cross_mlip_comparison
+   tutorials/ensemble_analysis
 
 .. toctree::
    :maxdepth: 2
    :caption: Concepts
+   :hidden:
 
    concepts/index
+   concepts/fish_categories
+   concepts/platonic_representation
+   concepts/spatial_metrics
 
 .. toctree::
    :maxdepth: 2
    :caption: API Reference
+   :hidden:
 
    api/index
    api/fish_analyzer
    api/aggregation
    api/spatial_metrics
+   api/anchors
+   api/metrics
+
+.. toctree::
+   :maxdepth: 1
+   :caption: About
+   :hidden:
+
+   about/contributing
+   about/changelog
+   about/license
 
 Indices and tables
-==================
+------------------
 
 * :ref:`genindex`
 * :ref:`modindex`
