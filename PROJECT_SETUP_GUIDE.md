@@ -39,7 +39,7 @@ git commit -m "Initial commit: ManiFish project structure"
 
 # Create GitHub repository (on GitHub website)
 # Then connect local to remote
-git remote add origin https://github.com/yourusername/manifish.git
+git remote add origin https://github.com/lizhenzhupearl/ManiFish.git
 git branch -M main
 git push -u origin main
 ```

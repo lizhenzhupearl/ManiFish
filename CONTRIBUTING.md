@@ -15,7 +15,7 @@ Thank you for your interest in contributing to ManiFish! 🐟
 ## Development Setup
 
 ```bash
-git clone https://github.com/yourusername/manifish.git
+git clone https://github.com/lizhenzhupearl/ManiFish.git
 cd manifish
 pip install -e ".[dev]"
 ```

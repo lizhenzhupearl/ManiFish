@@ -57,10 +57,10 @@ viz = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/yourusername/manifish"
-Documentation = "https://manifish.readthedocs.io"
-Repository = "https://github.com/yourusername/manifish"
-Issues = "https://github.com/yourusername/manifish/issues"
+Homepage = "https://github.com/lizhenzhupearl/ManiFish"
+Documentation = "https://lizhenzhupearl.github.io/ManiFish"
+Repository = "https://github.com/lizhenzhupearl/ManiFish"
+Issues = "https://github.com/lizhenzhupearl/ManiFish/issues"
 
 [tool.setuptools.packages.find]
 where = ["."]

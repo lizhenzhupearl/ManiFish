@@ -38,7 +38,7 @@ ManiFish provides a unified anchor-based manifold framework for evaluating and c
 pip install manifish
 
 # From source
-git clone https://github.com/yourusername/manifish.git
+git clone https://github.com/lizhenzhupearl/ManiFish.git
 cd manifish
 pip install -e .
 ```
@@ -175,7 +175,7 @@ If you use ManiFish in your research, please cite:
 
 ## 📧 Contact
 
-- **Issues**: [GitHub Issues](https://github.com/yourusername/manifish/issues)
+- **Issues**: [GitHub Issues](https://github.com/lizhenzhupearl/ManiFish/issues)
 - **Email**: your.email@example.com
 - **Twitter**: @yourusername
 
