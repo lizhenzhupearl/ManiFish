@@ -93,6 +93,67 @@ Retrieve materials by their classification category:
    for r in frontier_results:
        print(f"{r.material_id}: confidence={r.confidence:.2f}")
 
+Viewing Detailed Statistics
+---------------------------
+
+Use ``print_statistics`` to see the metrics that determined each material's classification:
+
+.. code-block:: python
+
+   # Show statistics for specific materials
+   analyzer.print_statistics(results, material_ids=["gen_0", "gen_5"])
+
+   # Show statistics for first 3 materials by index
+   analyzer.print_statistics(results, indices=[0, 1, 2])
+
+   # Show statistics for all frontier fish
+   frontier_ids = analyzer.get_ids_by_category(results, "frontier_fish")
+   analyzer.print_statistics(results, material_ids=frontier_ids)
+
+   # Output example:
+   # ════════════════════════════════════════════════════════════════════════════════
+   # DETAILED STATISTICS FOR MATERIALS
+   # ════════════════════════════════════════════════════════════════════════════════
+   #
+   # ────────────────────────────────────────────────────────────────────────────────
+   # Material: gen_0  (index: 0)
+   # ────────────────────────────────────────────────────────────────────────────────
+   #
+   #   CLASSIFICATION:
+   #     Category:        Frontier Fish
+   #     Confidence:      0.850
+   #     Risk Level:      LOW
+   #
+   #   POSITION METRICS:
+   #     Manifold Distance:   0.1234  (normalized distance to nearest references)
+   #     Depth Score:         0.7500  (0=deep inside, 1=shallow/edge)
+   #     Boundary Distance:   +0.0500  (+inside, -outside manifold)
+   #
+   #   DENSITY METRICS:
+   #     Local Density:       0.0023
+   #     Density Percentile:  15.2%  (vs reference distribution)
+   #
+   #   GEOMETRY CONSISTENCY:
+   #     Local PCA Residual:  0.0150  (reconstruction error)
+   #     Geometry Consistent: Yes
+   #
+   #   NEAREST REFERENCES:
+   #     Top 3: mp-123, mp-456, mp-789
+
+You can also get individual results programmatically:
+
+.. code-block:: python
+
+   # Get a single result by material ID
+   result = analyzer.get_result_by_id(results, "gen_0")
+   if result:
+       print(f"Category: {result.category}")
+       print(f"Manifold distance: {result.manifold_distance}")
+       print(f"Local PCA residual: {result.local_pca_residual}")
+
+   # Get a single result by index
+   result = analyzer.get_result_by_index(results, 0)
+
 **Available methods:**
 
 .. list-table::
@@ -111,6 +172,12 @@ Retrieve materials by their classification category:
      - Dict of category → indices
    * - ``get_results_by_category(results, cat)``
      - List of full result objects
+   * - ``print_statistics(results, ...)``
+     - Print detailed metrics for specific materials
+   * - ``get_result_by_id(results, id)``
+     - Get single result by material ID
+   * - ``get_result_by_index(results, idx)``
+     - Get single result by index
 
 API Reference
 -------------

@@ -1109,6 +1109,150 @@ class ManifoldFishAnalyzer:
 
         return neighbor_indices
 
+    def print_statistics(
+        self,
+        results: List[ManifoldFishResult],
+        material_ids: Optional[List[str]] = None,
+        indices: Optional[List[int]] = None,
+        show_neighbors: bool = True,
+        n_neighbors_to_show: int = 3,
+    ) -> None:
+        """
+        Print detailed statistics for specific materials that led to their classification.
+
+        Args:
+            results: Analysis results from analyze()
+            material_ids: List of material IDs to show. If None, shows all or uses indices.
+            indices: List of indices (positions in results) to show. Ignored if material_ids given.
+            show_neighbors: Whether to show nearest reference IDs
+            n_neighbors_to_show: Number of nearest neighbors to display
+
+        Example:
+            >>> # Show statistics for specific materials
+            >>> analyzer.print_statistics(results, material_ids=["gen_0", "gen_5"])
+
+            >>> # Show statistics for first 3 materials
+            >>> analyzer.print_statistics(results, indices=[0, 1, 2])
+
+            >>> # Show all frontier fish
+            >>> frontier_ids = analyzer.get_ids_by_category(results, "frontier_fish")
+            >>> analyzer.print_statistics(results, material_ids=frontier_ids)
+        """
+        # Build lookup dict for fast access
+        results_by_id = {r.material_id: r for r in results}
+        results_by_idx = {r.index: r for r in results}
+
+        # Determine which results to show
+        if material_ids is not None:
+            to_show = []
+            for mid in material_ids:
+                if mid in results_by_id:
+                    to_show.append(results_by_id[mid])
+                else:
+                    print(f"Warning: material_id '{mid}' not found in results")
+        elif indices is not None:
+            to_show = []
+            for idx in indices:
+                if idx in results_by_idx:
+                    to_show.append(results_by_idx[idx])
+                else:
+                    print(f"Warning: index {idx} not found in results")
+        else:
+            to_show = results
+
+        if not to_show:
+            print("No materials to show.")
+            return
+
+        print("\n" + "=" * 80)
+        print("DETAILED STATISTICS FOR MATERIALS")
+        print("=" * 80)
+
+        for r in to_show:
+            print(f"\n{'─' * 80}")
+            print(f"Material: {r.material_id}  (index: {r.index})")
+            print(f"{'─' * 80}")
+
+            # Classification result
+            cat_display = r.category.replace("_", " ").title()
+            print(f"\n  CLASSIFICATION:")
+            print(f"    Category:        {cat_display}")
+            print(f"    Confidence:      {r.confidence:.3f}")
+            print(f"    Risk Level:      {r.risk_level.upper()}")
+
+            # Position metrics
+            print(f"\n  POSITION METRICS:")
+            print(f"    Manifold Distance:   {r.manifold_distance:.4f}  (normalized distance to nearest references)")
+            print(f"    Depth Score:         {r.depth_score:.4f}  (0=deep inside, 1=shallow/edge)")
+            print(f"    Boundary Distance:   {r.boundary_distance:+.4f}  (+inside, -outside manifold)")
+
+            # Density metrics
+            print(f"\n  DENSITY METRICS:")
+            print(f"    Local Density:       {r.local_density:.4f}")
+            print(f"    Density Percentile:  {r.density_percentile:.1f}%  (vs reference distribution)")
+
+            # Geometry consistency
+            print(f"\n  GEOMETRY CONSISTENCY:")
+            print(f"    Local PCA Residual:  {r.local_pca_residual:.4f}  (reconstruction error)")
+            consistent_str = "Yes" if r.geometry_consistent else "No (ATYPICAL GEOMETRY)"
+            print(f"    Geometry Consistent: {consistent_str}")
+
+            # Ensemble variance (if available)
+            if r.ensemble_variance > 0:
+                print(f"\n  ENSEMBLE:")
+                print(f"    Variance:            {r.ensemble_variance:.4f}")
+
+            # Nearest neighbors
+            if show_neighbors and r.nearest_reference_ids:
+                n_to_show = min(n_neighbors_to_show, len(r.nearest_reference_ids))
+                neighbors_str = ", ".join(r.nearest_reference_ids[:n_to_show])
+                print(f"\n  NEAREST REFERENCES:")
+                print(f"    Top {n_to_show}: {neighbors_str}")
+
+        print("\n" + "=" * 80)
+        print(f"Showed {len(to_show)} material(s)")
+        print("=" * 80 + "\n")
+
+    def get_result_by_id(
+        self,
+        results: List[ManifoldFishResult],
+        material_id: str,
+    ) -> Optional[ManifoldFishResult]:
+        """
+        Get a single result by material ID.
+
+        Args:
+            results: Analysis results from analyze()
+            material_id: The material ID to find
+
+        Returns:
+            ManifoldFishResult if found, None otherwise
+        """
+        for r in results:
+            if r.material_id == material_id:
+                return r
+        return None
+
+    def get_result_by_index(
+        self,
+        results: List[ManifoldFishResult],
+        index: int,
+    ) -> Optional[ManifoldFishResult]:
+        """
+        Get a single result by index.
+
+        Args:
+            results: Analysis results from analyze()
+            index: The index to find
+
+        Returns:
+            ManifoldFishResult if found, None otherwise
+        """
+        for r in results:
+            if r.index == index:
+                return r
+        return None
+
     # =========================================================================
     # Export Methods
     # =========================================================================

@@ -140,7 +140,49 @@ for cat, indices in indices_by_cat.items():
         print(f"{cat}: {len(indices)} materials")
 ```
 
-## Step 8: Prioritize for DFT Validation
+## Step 8: View Detailed Statistics
+
+See the metrics that determined each material's classification:
+
+```python
+# Show statistics for specific materials
+analyzer.print_statistics(results, material_ids=["gen-0", "gen-5"])
+
+# Show statistics for all frontier fish
+frontier_ids = analyzer.get_ids_by_category(results, "frontier_fish")
+analyzer.print_statistics(results, material_ids=frontier_ids)
+```
+
+Output:
+```
+DETAILED STATISTICS FOR MATERIALS
+────────────────────────────────────────────────────────────────────────────────
+Material: gen-0  (index: 0)
+────────────────────────────────────────────────────────────────────────────────
+
+  CLASSIFICATION:
+    Category:        Frontier Fish
+    Confidence:      0.850
+    Risk Level:      LOW
+
+  POSITION METRICS:
+    Manifold Distance:   0.1234  (normalized distance to nearest references)
+    Depth Score:         0.7500  (0=deep inside, 1=shallow/edge)
+    Boundary Distance:   +0.0500  (+inside, -outside manifold)
+
+  DENSITY METRICS:
+    Local Density:       0.0023
+    Density Percentile:  15.2%  (vs reference distribution)
+
+  GEOMETRY CONSISTENCY:
+    Local PCA Residual:  0.0150  (reconstruction error)
+    Geometry Consistent: Yes
+
+  NEAREST REFERENCES:
+    Top 3: mp-123, mp-456, mp-789
+```
+
+## Step 9: Prioritize for DFT Validation
 
 ```python
 # Get high-priority structures for DFT validation

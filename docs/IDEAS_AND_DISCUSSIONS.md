@@ -103,6 +103,135 @@ True geodesic distance follows the curve (much longer)
 
 ---
 
+## 2025-01-28: Insights from FedMC Paper (Federated Manifold Calibration)
+
+**Source:** "FedMC: Federated Manifold Calibration" (ICLR 2026 submission)
+
+### Core Argument
+
+The paper argues that traditional calibration methods fail because they assume embeddings lie in a **linear subspace**, but real data lives on **curved manifolds**. This directly supports our earlier discussion about PCA finding "shortcuts through empty space."
+
+### Key Concepts
+
+#### 1. Local Kernel PCA (vs Linear PCA)
+
+FedMC uses **local kernel PCA** to capture the manifold's local curvature at each point:
+
+| Approach | What it captures | Limitation |
+|----------|------------------|------------|
+| Global linear PCA | Single linear subspace | Misses curvature entirely |
+| Local linear PCA (ManiFish current) | Local tangent plane | Assumes locally flat |
+| Local kernel PCA (FedMC) | Nonlinear local geometry | More computationally expensive |
+
+**Implication for ManiFish:** Our current local PCA residual assumes the manifold is locally flat. Kernel PCA could capture cases where even locally the geometry is curved.
+
+#### 2. Geometry Dictionary
+
+FedMC builds a **"geometry dictionary"** - a collection of local geometry descriptors that can be aggregated across the dataset.
+
+**How it works:**
+- Each point has associated local geometry information
+- These are stored in a dictionary structure
+- Can be used to characterize "normal" local geometry
+- Anomalies detected by geometry mismatch, not just distance
+
+**Potential ManiFish application:**
+```
+For each reference point, store:
+  - Local covariance structure
+  - Principal directions (tangent space basis)
+  - Local intrinsic dimension estimate
+  - Curvature indicators
+
+When evaluating a generated point:
+  - Find its neighbors
+  - Compare its local geometry to neighbors' stored geometry
+  - Flag if geometry is inconsistent (not just if distance is large)
+```
+
+#### 3. On-Manifold Operations
+
+The paper performs corrections **within the local tangent space** rather than in ambient Euclidean space.
+
+**Key insight:** Operations should respect the manifold structure:
+- Don't measure distances through empty space
+- Don't apply corrections that move points off-manifold
+- Work in the coordinate system natural to the local geometry
+
+**For ManiFish:** This suggests our distance thresholds should potentially be **adaptive** to local geometry. A point might be "close" in Euclidean terms but "far" in geodesic terms if the manifold curves away.
+
+### Relevance Matrix
+
+| FedMC Concept | Current ManiFish | Potential Upgrade |
+|---------------|------------------|-------------------|
+| Local kernel PCA | Linear local PCA | Add kernel option for curved regions |
+| Geometry dictionary | None (stateless) | Store local geometry per reference point |
+| On-manifold calibration | Euclidean thresholds | Adaptive thresholds based on local geometry |
+| Tangent space alignment | Implicit in PCA residual | Explicit tangent space comparison |
+
+### Concrete Ideas for Implementation
+
+1. **Geometry-aware anomaly detection:**
+   - Store local covariance matrix for each reference point
+   - When evaluating generated point, check if its local geometry matches neighbors
+   - New category: "geometry_mismatch" (has neighbors but wrong local structure)
+
+2. **Adaptive distance thresholds:**
+   - Compute local density/spread for each reference region
+   - Scale "outside manifold" threshold by local geometry
+   - Dense regions: tighter threshold; sparse regions: looser threshold
+
+3. **Curvature-based classification:**
+   - Estimate local curvature at each point
+   - High curvature regions may need special handling
+   - Could explain why some "edge_fish" are actually on a curved boundary
+
+4. **Tangent space consistency score:**
+   - For a generated point and its k neighbors
+   - Compute tangent space at generated point (from local PCA)
+   - Compare alignment with neighbors' tangent spaces
+   - Large misalignment → geometric anomaly
+
+### Questions Raised
+
+1. **Is kernel PCA worth the computational cost?**
+   - Linear local PCA is O(k * d^2) per point
+   - Kernel PCA adds kernel matrix computation
+   - For materials discovery, accuracy may be worth the cost
+
+2. **What kernel to use?**
+   - RBF kernel is standard but has bandwidth hyperparameter
+   - Polynomial kernel might capture specific physics
+   - Could the kernel be learned from data?
+
+3. **How to aggregate geometry across materials?**
+   - FedMC aggregates across federated clients
+   - ManiFish could aggregate across different material classes
+   - Cross-MLIP geometry comparison?
+
+### Connection to Earlier Discussion
+
+This paper provides **theoretical grounding** for our intuition that:
+- Euclidean distance through embedding space can be misleading
+- Local geometry matters more than global structure
+- The manifold's curvature affects what "similar" and "different" mean
+
+The **geometry dictionary** concept could be particularly powerful for ManiFish:
+- Build a "dictionary of known material geometries"
+- Compare generated materials not just by distance, but by geometric consistency
+- Potentially detect when a generated structure has "impossible" local geometry
+
+### Potential Future Directions
+
+- [ ] Implement optional kernel PCA for local geometry estimation
+- [ ] Add geometry dictionary storage to ManifoldFishAnalyzer
+- [ ] Create "geometry_mismatch" as a new fish category
+- [ ] Implement adaptive thresholds based on local density/curvature
+- [ ] Compare tangent space alignment between neighbors
+- [ ] Explore cross-MLIP geometry consistency
+
+---
+
 ## Template for Future Ideas
 
 ### Date: YYYY-MM-DD - Topic
