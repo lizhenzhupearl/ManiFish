@@ -1046,6 +1046,8 @@ class ManifoldFishAnalyzer:
         material_ids: Optional[List[str]] = None,
         n_neighbors: Optional[int] = None,
         use_local_pca_neighbors: bool = True,
+        diagnose_pca: bool = False,
+        pca_components: int = 3,
     ) -> np.ndarray:
         """
         Print and return the neighbor indices (in reference set) for generated materials.
@@ -1058,6 +1060,9 @@ class ManifoldFishAnalyzer:
                          else n_neighbors)
             use_local_pca_neighbors: If True, use the local PCA k-NN model which
                                      has more neighbors. If False, use the standard k-NN.
+            diagnose_pca: If True, print diagnostic comparing full-space vs PCA-space
+                          distances to help understand visualization discrepancies.
+            pca_components: Number of PCA components to use for diagnosis (default 3).
 
         Returns:
             neighbor_indices: Array of shape (n_generated, n_neighbors) containing
@@ -1107,7 +1112,122 @@ class ManifoldFishAnalyzer:
 
         print("-" * 60)
 
+        # PCA diagnostic
+        if diagnose_pca:
+            self._diagnose_neighbor_distances(
+                generated, neighbor_indices, distances, mat_ids, pca_components
+            )
+
         return neighbor_indices
+
+    def _diagnose_neighbor_distances(
+        self,
+        generated: np.ndarray,
+        neighbor_indices: np.ndarray,
+        full_space_distances: np.ndarray,
+        mat_ids: List[str],
+        n_components: int = 3,
+    ) -> None:
+        """
+        Diagnostic to compare neighbor distances in full latent space vs PCA projection.
+
+        This helps explain why neighbors might appear scattered in a 3D PCA visualization
+        even though they are genuinely close in the full high-dimensional space.
+        """
+        from sklearn.decomposition import PCA
+
+        print("\n" + "=" * 70)
+        print("PCA DISTANCE DIAGNOSTIC")
+        print("=" * 70)
+
+        # Fit PCA on combined data (reference + generated)
+        combined = np.vstack([self.reference, generated])
+        pca = PCA(n_components=n_components)
+        pca.fit(combined)
+
+        # Transform reference and generated to PCA space
+        ref_pca = pca.transform(self.reference)
+        gen_pca = pca.transform(generated)
+
+        # Report variance explained
+        variance_explained = pca.explained_variance_ratio_
+        total_variance = sum(variance_explained)
+        print(f"\nLatent space dimensionality: {self.reference.shape[1]}")
+        print(f"PCA components: {n_components}")
+        print(f"Variance explained by each PC: {[f'{v:.1%}' for v in variance_explained]}")
+        print(f"Total variance explained: {total_variance:.1%}")
+        print(f"Variance NOT captured (hidden dimensions): {1 - total_variance:.1%}")
+
+        print("\n" + "-" * 70)
+        print("Per-material neighbor distance analysis:")
+        print("-" * 70)
+
+        for i, mat_id in enumerate(mat_ids):
+            indices = neighbor_indices[i]
+            full_dists = full_space_distances[i]
+
+            # Compute PCA-space distances to the same neighbors
+            gen_point_pca = gen_pca[i]
+            neighbor_points_pca = ref_pca[indices]
+            pca_dists = np.linalg.norm(neighbor_points_pca - gen_point_pca, axis=1)
+
+            # Statistics
+            mean_full = np.mean(full_dists)
+            mean_pca = np.mean(pca_dists)
+            std_full = np.std(full_dists)
+            std_pca = np.std(pca_dists)
+
+            # Compute how much distance is "hidden" in non-PCA dimensions
+            # full_dist^2 = pca_dist^2 + hidden_dist^2 (Pythagorean in orthogonal subspaces)
+            hidden_dists_sq = full_dists**2 - pca_dists**2
+            hidden_dists_sq = np.maximum(hidden_dists_sq, 0)  # Numerical safety
+            hidden_dists = np.sqrt(hidden_dists_sq)
+            mean_hidden = np.mean(hidden_dists)
+
+            # Ratio: how much of the distance is visible in PCA vs hidden
+            pca_fraction = mean_pca / mean_full if mean_full > 0 else 0
+            hidden_fraction = mean_hidden / mean_full if mean_full > 0 else 0
+
+            print(f"\n{mat_id}:")
+            print(f"  Mean distance to neighbors (full {self.reference.shape[1]}D): {mean_full:.4f} ± {std_full:.4f}")
+            print(f"  Mean distance to neighbors (PCA {n_components}D):  {mean_pca:.4f} ± {std_pca:.4f}")
+            print(f"  Mean 'hidden' distance (dimensions {n_components+1}+): {mean_hidden:.4f}")
+            print(f"  Distance visible in PCA: {pca_fraction:.1%}")
+            print(f"  Distance hidden (not visible): {hidden_fraction:.1%}")
+
+            if hidden_fraction > 0.5:
+                print(f"  ⚠️  WARNING: >50% of neighbor distance is in hidden dimensions!")
+                print(f"     Neighbors may appear scattered in {n_components}D visualization.")
+
+        # Summary statistics across all materials
+        print("\n" + "-" * 70)
+        print("Summary:")
+        print("-" * 70)
+
+        all_full_dists = full_space_distances.flatten()
+        all_pca_dists = []
+        for i in range(len(generated)):
+            indices = neighbor_indices[i]
+            gen_point_pca = gen_pca[i]
+            neighbor_points_pca = ref_pca[indices]
+            pca_dists = np.linalg.norm(neighbor_points_pca - gen_point_pca, axis=1)
+            all_pca_dists.extend(pca_dists)
+        all_pca_dists = np.array(all_pca_dists)
+
+        overall_pca_fraction = np.mean(all_pca_dists) / np.mean(all_full_dists)
+        print(f"Overall: {overall_pca_fraction:.1%} of neighbor distance visible in {n_components}D PCA")
+
+        if overall_pca_fraction < 0.7:
+            print(f"\n💡 INSIGHT: Only {overall_pca_fraction:.1%} of distance is captured by {n_components} PCs.")
+            print("   This explains why neighbors appear scattered in visualization.")
+            print("   The neighbors ARE close in the full latent space - just not in the")
+            print("   3 dimensions you're visualizing.")
+        elif total_variance < 0.7:
+            print(f"\n💡 INSIGHT: PCA only captures {total_variance:.1%} of total variance.")
+            print("   Consider using more PCA components or accepting that 3D visualization")
+            print("   cannot fully represent the high-dimensional neighbor relationships.")
+
+        print("=" * 70 + "\n")
 
     def print_statistics(
         self,
