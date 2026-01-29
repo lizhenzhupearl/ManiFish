@@ -1310,6 +1310,7 @@ class ManifoldFishAnalyzer:
             print(f"\n  DENSITY METRICS:")
             print(f"    Local Density:       {r.local_density:.4f}")
             print(f"    Density Percentile:  {r.density_percentile:.1f}%  (vs reference distribution)")
+            print(f"    LOF Score:           {r.lof_score:.4f}  (≈-1 normal, <<-1 outlier)")
 
             # Geometry consistency
             print(f"\n  GEOMETRY CONSISTENCY:")
