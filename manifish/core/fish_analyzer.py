@@ -43,9 +43,50 @@ except ImportError:
 
 try:
     import matplotlib.pyplot as plt
+    import matplotlib.font_manager as fm
     HAS_MATPLOTLIB = True
 except ImportError:
     HAS_MATPLOTLIB = False
+
+
+# =============================================================================
+# Plotting Style Helper
+# =============================================================================
+
+def apply_plot_style(ax, xlabel_size: int = 12, ylabel_size: int = 12,
+                     tick_labelsize: int = 14, spine_linewidth: float = 1.0):
+    """
+    Apply consistent plotting style to an axis.
+
+    Style includes:
+    - Black spines on all sides with specified linewidth
+    - Consistent tick label sizes
+    - Arial font for tick labels (if available)
+
+    Args:
+        ax: Matplotlib axis object
+        xlabel_size: Font size for x-axis label
+        ylabel_size: Font size for y-axis label
+        tick_labelsize: Font size for tick labels
+        spine_linewidth: Line width for axis spines
+    """
+    # Set spine colors and linewidths
+    for spine in ['top', 'right', 'bottom', 'left']:
+        ax.spines[spine].set_color('black')
+        ax.spines[spine].set_linewidth(spine_linewidth)
+
+    # Customize tick parameters
+    ax.tick_params(axis='both', which='both', labelsize=tick_labelsize)
+    ax.xaxis.set_tick_params(labelsize=tick_labelsize)
+    ax.yaxis.set_tick_params(labelsize=tick_labelsize)
+
+    # Try to use Arial font for tick labels
+    try:
+        arial_font = fm.FontProperties(family='Arial', size=tick_labelsize)
+        for tick in ax.get_xticklabels() + ax.get_yticklabels():
+            tick.set_fontproperties(arial_font)
+    except Exception:
+        pass  # Fall back to default font if Arial not available
 
 
 # =============================================================================
@@ -1801,6 +1842,10 @@ class ManifoldFishAnalyzer:
                 ax9.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.5,
                         str(count), ha='center', va='bottom', fontsize=9)
 
+        # Apply consistent style to all axes
+        for ax in axes.flatten():
+            apply_plot_style(ax, tick_labelsize=12)
+
         plt.tight_layout()
 
         if save_path:
@@ -1862,11 +1907,14 @@ class ManifoldFishAnalyzer:
         # Plot centroid
         ax.scatter(*self.centroid, c='black', marker='*', s=200, label='Centroid')
 
-        ax.set_xlabel('PC1', fontsize=10)
-        ax.set_ylabel('PC2', fontsize=10)
-        ax.set_zlabel('PC3', fontsize=10)
+        ax.set_xlabel('PC1', fontsize=12)
+        ax.set_ylabel('PC2', fontsize=12)
+        ax.set_zlabel('PC3', fontsize=12)
         ax.set_title('3D Manifold Visualization', fontsize=12, fontweight='bold')
         ax.legend(loc='upper left', fontsize=8)
+
+        # Apply tick label style (3D axes don't have standard spines)
+        ax.tick_params(axis='both', which='both', labelsize=12)
 
         plt.tight_layout()
 
@@ -1903,6 +1951,9 @@ class ManifoldFishAnalyzer:
         sns.heatmap(corr, annot=True, cmap='coolwarm', center=0,
                    fmt='.2f', ax=ax, square=True)
         ax.set_title('Metric Correlations', fontsize=12, fontweight='bold')
+
+        # Apply consistent style
+        apply_plot_style(ax, tick_labelsize=12)
 
         plt.tight_layout()
 
