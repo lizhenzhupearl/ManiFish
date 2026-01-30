@@ -158,6 +158,7 @@ class ManifoldFishResult:
     # Density metrics
     local_density: float          # k-NN density estimate
     density_percentile: float     # Percentile vs reference distribution (0-100)
+    lof_score: float = 0.0        # Local Outlier Factor score (≈-1 normal, <<-1 outlier)
 
     # Geometry consistency
     local_pca_residual: float     # Reconstruction error from local tangent (normalized)
@@ -581,6 +582,7 @@ class ManifoldFishAnalyzer:
                 boundary_distance=metrics['boundary_distance'][i],
                 local_density=metrics['local_density'][i],
                 density_percentile=metrics['density_percentile'][i],
+                lof_score=metrics['lof_score'][i],
                 local_pca_residual=metrics['local_pca_residual'][i],
                 geometry_consistent=metrics['local_pca_residual'][i] < self.geometry_threshold,
                 ensemble_variance=0.0,  # Placeholder
@@ -1483,6 +1485,7 @@ class ManifoldFishAnalyzer:
                 'boundary_distance': r.boundary_distance,
                 'local_density': r.local_density,
                 'density_percentile': r.density_percentile,
+                'lof_score': r.lof_score,
                 'local_pca_residual': r.local_pca_residual,
                 'geometry_consistent': r.geometry_consistent,
                 'ensemble_variance': r.ensemble_variance,
@@ -1933,6 +1936,7 @@ class ManifoldFishAnalyzer:
             'boundary_distance': [r.boundary_distance for r in results],
             'local_density': [r.local_density for r in results],
             'density_percentile': [r.density_percentile for r in results],
+            'lof_score': [r.lof_score for r in results],
             'local_pca_residual': [r.local_pca_residual for r in results],
             'confidence': [r.confidence for r in results],
         }
