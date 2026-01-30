@@ -848,64 +848,90 @@ class ManifoldFishAnalyzer:
         """
         Classify structure into one of 7 categories.
 
-        Classification priority:
-        0. Check for near-exact match FIRST (very close to reference = redundant)
-        1. Check geometry consistency (atypical check, skipped for near-matches)
-        2. Check if far outside (structural_hallucination)
-        3. Check boundary position (edge vs inside vs outside)
-        4. Check density and depth (redundant vs frontier vs normal)
+        Classification logic:
+        0. Near-exact match → redundant_fish (very_low risk)
+        1. Outside boundary → geometry + LOF based classification
+        2. Inside boundary:
+           - Sparse region (frontier): geometry determines risk, LOF as secondary filter
+           - Dense region: edge_fish, redundant_fish, fish_in_water, geometric_atypical
+
+        Key insight: In sparse/frontier regions, geometry consistency is the primary
+        validity indicator. Good geometry = valid frontier even if LOF is outlier-ish.
         """
 
-        # 0. Check for near-exact match first (very close to reference point)
-        # If manifold_distance is very small, it's essentially a reference point
         near_exact_threshold = 0.05  # Very close to a reference point
+
+        # Helper flags
+        geometry_good = (self.local_geometry_mode == "skip" or
+                        local_pca_residual <= self.geometry_threshold)
+        lof_outlier = lof_score < self.outlier_threshold
+        is_sparse = density_percentile < self.sparse_threshold
+
+        # 0. Near-exact match → redundant_fish
         if manifold_distance < near_exact_threshold:
-            # This is essentially a reference point or very close duplicate
             confidence = min(1.0, (near_exact_threshold - manifold_distance) / near_exact_threshold + 0.6)
             return "redundant_fish", confidence, "very_low"
 
-        # 1. Geometric atypical check (for points claiming to be "inside" but with unusual geometry)
-        # Skip this check if local_geometry_mode is "skip"
-        # Also skip if manifold_distance is small (point is close to reference, geometry check unreliable)
-        if self.local_geometry_mode != "skip":
-            # Only flag geometric_atypical if point is moderately inside but geometry is off
-            # Skip geometry check for very close points (normalized residual is unreliable)
-            if manifold_distance > near_exact_threshold and local_pca_residual > self.geometry_threshold:
-                if manifold_distance < self.stability_threshold:
-                    # Claims to be inside but geometry is unusual
-                    confidence = min(1.0, (local_pca_residual - self.geometry_threshold) / 0.3 + 0.5)
-                    return "geometric_atypical", confidence, "medium_high"
+        # 1. Outside boundary
+        if boundary_distance < 0:
+            if geometry_good:
+                # Good geometry outside = adventurous exploration
+                if abs(boundary_distance) < self.edge_margin * 2:
+                    confidence = min(1.0, abs(boundary_distance) / self.edge_margin + 0.3)
+                    return "adventurous_fish", confidence, "medium"
+                else:
+                    # Far outside but good geometry - still adventurous but higher risk
+                    confidence = min(1.0, abs(boundary_distance) / (self.edge_margin * 4) + 0.5)
+                    return "adventurous_fish", confidence, "medium_high"
+            else:
+                # Bad geometry outside
+                if lof_outlier:
+                    confidence = min(1.0, abs(lof_score - self.outlier_threshold) / 2 + 0.5)
+                    return "structural_hallucination", confidence, "very_high"
+                else:
+                    # Bad geometry but LOF normal - high risk adventurous
+                    confidence = min(1.0, abs(boundary_distance) / self.edge_margin + 0.4)
+                    return "adventurous_fish", confidence, "high"
 
-        # 2. Far outside check (LOF-based) - structural hallucination
-        if lof_score < self.outlier_threshold:
+        # 2. Inside boundary
+
+        # 2a. Sparse region (frontier) - geometry is primary indicator
+        if is_sparse:
+            if geometry_good:
+                # Good geometry in sparse = valid frontier (even if LOF outlier)
+                confidence = min(1.0, (self.sparse_threshold - density_percentile) / self.sparse_threshold + 0.5)
+                return "frontier_fish", confidence, "low"
+            else:
+                # Bad geometry in sparse
+                if lof_outlier:
+                    # Both geometry bad AND density anomaly → hallucination
+                    confidence = min(1.0, abs(lof_score - self.outlier_threshold) / 2 + 0.5)
+                    return "structural_hallucination", confidence, "very_high"
+                else:
+                    # Bad geometry but fits local density → high risk frontier
+                    confidence = min(1.0, (self.sparse_threshold - density_percentile) / self.sparse_threshold + 0.4)
+                    return "frontier_fish", confidence, "high"
+
+        # 2b. Dense region - original logic for stable categories
+
+        # Geometric atypical check (dense region only)
+        if self.local_geometry_mode != "skip" and not geometry_good:
+            if manifold_distance < self.stability_threshold:
+                confidence = min(1.0, (local_pca_residual - self.geometry_threshold) / 0.3 + 0.5)
+                return "geometric_atypical", confidence, "medium_high"
+
+        # LOF outlier in dense region
+        if lof_outlier:
             confidence = min(1.0, abs(lof_score - self.outlier_threshold) / 2 + 0.5)
             return "structural_hallucination", confidence, "very_high"
 
-        # 3. Boundary-based classification
-        if boundary_distance < 0:  # Outside boundary
-            if abs(boundary_distance) < self.edge_margin * 2:
-                # Slightly outside
-                confidence = min(1.0, abs(boundary_distance) / self.edge_margin + 0.3)
-                return "adventurous_fish", confidence, "medium_high"
-            else:
-                # Far outside - no neighbors, hallucination
-                confidence = min(1.0, abs(boundary_distance) / (self.edge_margin * 4) + 0.5)
-                return "structural_hallucination", confidence, "very_high"
-
-        # 4. Inside manifold - check position and density
-
-        # Near edge
+        # Near edge (dense region)
         if boundary_distance < self.edge_margin:
             confidence = min(1.0, (self.edge_margin - boundary_distance) / self.edge_margin + 0.4)
             return "edge_fish", confidence, "medium"
 
-        # Sparse region (frontier)
-        if density_percentile < self.sparse_threshold:
-            confidence = min(1.0, (self.sparse_threshold - density_percentile) / self.sparse_threshold + 0.5)
-            return "frontier_fish", confidence, "low_medium"
-
-        # Very central/deep (redundant)
-        if depth_score < self.depth_threshold / 100:  # depth_score is 0-1, threshold is percentile
+        # Very central/deep → redundant
+        if depth_score < self.depth_threshold / 100:
             confidence = min(1.0, (self.depth_threshold / 100 - depth_score) * 5 + 0.5)
             return "redundant_fish", confidence, "very_low"
 
