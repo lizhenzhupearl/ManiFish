@@ -1627,7 +1627,7 @@ class ManifoldFishAnalyzer:
     def plot_distribution(
         self,
         results: List[ManifoldFishResult],
-        figsize: Tuple[int, int] = (16, 12),
+        figsize: Tuple[int, int] = (18, 16),
         save_path: Optional[str] = None,
         show_ids: bool = False,
     ):
@@ -1640,7 +1640,7 @@ class ManifoldFishAnalyzer:
             save_path: Path to save figure
             show_ids: If True, annotate points with material IDs (small datasets only)
         """
-        fig, axes = plt.subplots(2, 3, figsize=figsize)
+        fig, axes = plt.subplots(3, 3, figsize=figsize)
 
         # Extract data
         manifold_dist = np.array([r.manifold_distance for r in results])
@@ -1648,6 +1648,8 @@ class ManifoldFishAnalyzer:
         boundary_dist = np.array([r.boundary_distance for r in results])
         density_pct = np.array([r.density_percentile for r in results])
         local_residual = np.array([r.local_pca_residual for r in results])
+        lof_score = np.array([r.lof_score for r in results])
+        risk_levels = np.array([r.risk_level for r in results])
         categories = np.array([r.category for r in results])
 
         colors = {cat: info["color"] for cat, info in CATEGORIES.items()}
@@ -1741,6 +1743,63 @@ class ManifoldFishAnalyzer:
         ax6.set_ylabel("Boundary Distance", fontsize=10)
         ax6.set_title("Depth vs Boundary Position", fontsize=12, fontweight='bold')
         ax6.legend(loc='upper right', fontsize=7)
+
+        # 7. Density percentile vs LOF score (key for sparse region decision)
+        ax7 = axes[2, 0]
+        for cat in CATEGORIES.keys():
+            mask = categories == cat
+            if np.sum(mask) > 0:
+                ax7.scatter(density_pct[mask], lof_score[mask],
+                           c=colors[cat], label=cat.replace("_", " ").title(),
+                           alpha=0.6, s=20)
+        ax7.axhline(y=self.outlier_threshold, color='red', linestyle='--', alpha=0.5,
+                   label=f'LOF threshold ({self.outlier_threshold})')
+        ax7.axvline(x=self.sparse_threshold, color='blue', linestyle=':', alpha=0.5,
+                   label=f'Sparse threshold ({self.sparse_threshold}%)')
+        ax7.set_xlabel("Density Percentile", fontsize=10)
+        ax7.set_ylabel("LOF Score (more negative = outlier)", fontsize=10)
+        ax7.set_title("Density vs LOF (Sparse Region Decision)", fontsize=12, fontweight='bold')
+        ax7.legend(loc='lower right', fontsize=7)
+
+        # 8. Local PCA residual vs LOF score (geometry + LOF interaction)
+        ax8 = axes[2, 1]
+        for cat in CATEGORIES.keys():
+            mask = categories == cat
+            if np.sum(mask) > 0:
+                ax8.scatter(local_residual[mask], lof_score[mask],
+                           c=colors[cat], label=cat.replace("_", " ").title(),
+                           alpha=0.6, s=20)
+        ax8.axhline(y=self.outlier_threshold, color='red', linestyle='--', alpha=0.5,
+                   label=f'LOF threshold ({self.outlier_threshold})')
+        ax8.axvline(x=self.geometry_threshold, color='green', linestyle=':', alpha=0.5,
+                   label=f'Geometry threshold ({self.geometry_threshold})')
+        ax8.set_xlabel("Local PCA Residual", fontsize=10)
+        ax8.set_ylabel("LOF Score (more negative = outlier)", fontsize=10)
+        ax8.set_title("Geometry vs LOF (Secondary Filter)", fontsize=12, fontweight='bold')
+        ax8.legend(loc='lower right', fontsize=7)
+
+        # 9. Risk level distribution
+        ax9 = axes[2, 2]
+        risk_order = ["very_low", "low", "medium", "medium_high", "high", "very_high"]
+        risk_colors = {
+            "very_low": "#2ecc71", "low": "#27ae60", "low_medium": "#f1c40f",
+            "medium": "#f39c12", "medium_high": "#e67e22", "high": "#e74c3c", "very_high": "#c0392b"
+        }
+        risk_counts = {r: np.sum(risk_levels == r) for r in risk_order}
+        # Filter out zero counts
+        non_zero_risks = [(r, c) for r, c in risk_counts.items() if c > 0]
+        if non_zero_risks:
+            risks, counts = zip(*non_zero_risks)
+            bars = ax9.bar(range(len(risks)), counts,
+                          color=[risk_colors.get(r, '#888888') for r in risks])
+            ax9.set_xticks(range(len(risks)))
+            ax9.set_xticklabels([r.replace("_", " ").title() for r in risks], rotation=45, ha='right')
+            ax9.set_ylabel("Count", fontsize=10)
+            ax9.set_title("Risk Level Distribution", fontsize=12, fontweight='bold')
+            # Add count labels on bars
+            for bar, count in zip(bars, counts):
+                ax9.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.5,
+                        str(count), ha='center', va='bottom', fontsize=9)
 
         plt.tight_layout()
 
