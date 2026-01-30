@@ -2,18 +2,17 @@ ManifoldFishAnalyzer
 ====================
 
 The ``ManifoldFishAnalyzer`` is the core classifier that categorizes generated
-structures into 7 categories based on their position relative to the reference manifold.
+structures into 6 categories based on their position relative to the reference manifold.
 
-The Seven Categories
---------------------
+The Six Categories
+------------------
 
 1. **Redundant Fish** - Deep inside manifold, dense region (very similar to known)
 2. **Fish in Water** - Inside manifold, normal density (standard candidate)
-3. **Frontier Fish** - Inside manifold, sparse region (exploring new territory)
+3. **Frontier Fish** - Sparse region (low/high risk based on geometry)
 4. **Edge Fish** - At manifold boundary (on the edge of known physics)
-5. **Adventurous Fish** - Slightly outside manifold (potentially novel)
-6. **Geometric Atypical** - High local PCA residual but has neighbors
-7. **Structural Hallucination** - Far outside manifold (likely unphysical)
+5. **Adventurous Fish** - Outside manifold (risk based on geometry and LOF)
+6. **Structural Hallucination** - Bad geometry + LOF outlier (likely unphysical)
 
 Basic Usage
 -----------

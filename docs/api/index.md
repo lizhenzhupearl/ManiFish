@@ -8,7 +8,7 @@ The main analysis classes for evaluating generated structures.
 
 #### ManifoldFishAnalyzer
 
-Base analyzer that classifies structures into 7 categories based on manifold position.
+Base analyzer that classifies structures into 6 categories based on manifold position.
 
 ```python
 from manifish import ManifoldFishAnalyzer
@@ -61,17 +61,18 @@ analyzer.plot_heatmap(results)
 analyzer.generate_report(results, output_dir="./reports")
 ```
 
-### The 7 Fish Categories
+### The 6 Fish Categories
 
 | Category | Description | Risk Level | Action |
 |----------|-------------|------------|--------|
 | `redundant_fish` | Deep inside manifold, dense region | very_low | Skip (redundant) |
 | `fish_in_water` | Inside manifold, normal density | low | Standard validation |
-| `frontier_fish` | Inside manifold, sparse region | low_medium | Priority for DFT |
+| `frontier_fish` | Sparse region | low or high* | Priority for DFT |
 | `edge_fish` | At manifold boundary | medium | Careful validation |
-| `adventurous_fish` | Slightly outside manifold | medium_high | High priority DFT |
-| `geometric_atypical` | High local PCA residual | medium_high | Investigate geometry |
-| `structural_hallucination` | Far outside manifold | very_high | Reject |
+| `adventurous_fish` | Outside manifold | medium to high* | High priority DFT |
+| `structural_hallucination` | Bad geometry + LOF outlier | very_high | Reject |
+
+*Risk level varies based on geometry consistency - check `risk_level` in results.
 
 ---
 
@@ -279,7 +280,7 @@ class ManifoldFishResult:
     density_percentile: float     # 0-100
     local_pca_residual: float     # Geometry consistency
     geometry_consistent: bool
-    category: str                 # One of 7 categories
+    category: str                 # One of 6 categories
     confidence: float             # 0-1
     risk_level: str              # very_low to very_high
     nearest_reference_ids: List[str]

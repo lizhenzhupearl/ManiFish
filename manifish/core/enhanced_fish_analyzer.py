@@ -3,16 +3,15 @@ Enhanced Manifold Fish Analyzer with Spatial Structure Metrics.
 
 This module extends ManifoldFishAnalyzer with spatial structure metrics
 (LDS, CDS, SRSS, RMSC) for improved classification and stability assessment
-while maintaining the same 7-fish category output format.
+while maintaining the same 6-fish category output format.
 
-The Seven Categories (inherited from ManifoldFishAnalyzer):
+The Six Categories (inherited from ManifoldFishAnalyzer):
 1. Redundant Fish       - Deep inside, dense region (very similar to known)
 2. Fish in Water        - Inside manifold, normal density (standard candidate)
-3. Frontier Fish        - Inside manifold, sparse region (exploring new territory)
+3. Frontier Fish        - Sparse region (low/high risk based on geometry)
 4. Edge Fish            - At manifold boundary (on the edge of known physics)
-5. Adventurous Fish     - Slightly outside manifold (potentially novel)
-6. Geometric Atypical   - High local PCA residual but has neighbors
-7. Structural Hallucination - Far outside manifold, no neighbors
+5. Adventurous Fish     - Outside manifold (risk based on geometry and LOF)
+6. Structural Hallucination - Bad geometry + LOF outlier (likely unphysical)
 
 NEW: Spatial metrics are computed for each structure and can optionally
 influence the confidence scores and classification.
@@ -578,7 +577,7 @@ class EnhancedManifoldFishAnalyzer(ManifoldFishAnalyzer):
         print("\nRECOMMENDED ACTIONS:")
         priority_order = [
             "frontier_fish", "adventurous_fish", "fish_in_water",
-            "edge_fish", "geometric_atypical", "structural_hallucination", "redundant_fish",
+            "edge_fish", "structural_hallucination", "redundant_fish",
         ]
         actions_printed = False
         for cat_name in priority_order:

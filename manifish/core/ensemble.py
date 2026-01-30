@@ -81,29 +81,27 @@ CATEGORIES = [
     "frontier_fish",
     "edge_fish",
     "adventurous_fish",
-    "geometric_atypical",
     "structural_hallucination",
 ]
 
 # Risk scores for voting (lower = safer)
+# Note: frontier_fish and adventurous_fish have variable risk based on geometry
 CATEGORY_RISK_SCORES = {
     "redundant_fish": 0.0,
     "fish_in_water": 0.2,
-    "frontier_fish": 0.4,
+    "frontier_fish": 0.4,  # Base; actual risk varies (low or high) based on geometry
     "edge_fish": 0.5,
-    "adventurous_fish": 0.7,
-    "geometric_atypical": 0.75,  # Has neighbors, could be interesting
-    "structural_hallucination": 1.0,  # No neighbors, likely unphysical
+    "adventurous_fish": 0.6,  # Base; actual risk varies based on geometry and LOF
+    "structural_hallucination": 1.0,  # Bad geometry + LOF outlier
 }
 
 # Stability likelihood (for weighted averaging)
 CATEGORY_STABILITY = {
     "redundant_fish": 0.95,
     "fish_in_water": 0.85,
-    "frontier_fish": 0.70,
+    "frontier_fish": 0.70,  # Varies based on geometry
     "edge_fish": 0.50,
-    "adventurous_fish": 0.30,
-    "geometric_atypical": 0.20,  # Unusual but has support
+    "adventurous_fish": 0.35,  # Varies based on geometry
     "structural_hallucination": 0.05,  # No support
 }
 
@@ -495,7 +493,6 @@ class EnsembleAnalyzer:
                 "frontier_fish": 0.45,
                 "edge_fish": 0.55,
                 "adventurous_fish": 0.75,
-                "geometric_atypical": 0.9,
                 "structural_hallucination": 1.0,
             }
 
@@ -543,7 +540,6 @@ class EnsembleAnalyzer:
             ("frontier_fish", 0.55),
             ("edge_fish", 0.40),
             ("adventurous_fish", 0.20),
-            ("geometric_atypical", 0.10),
             ("structural_hallucination", 0.0),
         ]
 

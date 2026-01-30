@@ -1,6 +1,6 @@
-# The Seven Fish Categories
+# The Six Fish Categories
 
-ManiFish classifies generated structures into seven categories based on their position relative to the reference manifold. This page explains each category and how to interpret them.
+ManiFish classifies generated structures into six categories based on their position relative to the reference manifold. This page explains each category and how to interpret them.
 
 ## The Fish-Water Metaphor
 
@@ -14,7 +14,7 @@ Think of the reference manifold as **water** - the space of known stable structu
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                    MANIFOLD INTERIOR                             │
+│                    MANIFOLD INTERIOR (DENSE)                    │
 │  ┌─────────────┐                                                │
 │  │  REDUNDANT  │  Dense region, very similar to known          │
 │  │    FISH     │                                                │
@@ -23,9 +23,11 @@ Think of the reference manifold as **water** - the space of known stable structu
 │           │   FISH IN   │  Normal region, standard candidates  │
 │           │   WATER     │                                       │
 │           └─────────────┘                                       │
+├─────────────────────────────────────────────────────────────────┤
+│                    MANIFOLD INTERIOR (SPARSE)                   │
 │                    ┌─────────────┐                              │
 │                    │  FRONTIER   │  Sparse region, exploring   │
-│                    │    FISH     │                              │
+│                    │    FISH     │  (risk depends on geometry) │
 │                    └─────────────┘                              │
 ├─────────────────────────────────────────────────────────────────┤
 │                    MANIFOLD BOUNDARY                            │
@@ -35,15 +37,11 @@ Think of the reference manifold as **water** - the space of known stable structu
 ├─────────────────────────────────────────────────────────────────┤
 │                    OUTSIDE MANIFOLD                             │
 │  ┌─────────────┐                                                │
-│  │ ADVENTUROUS │  Slightly outside, potentially novel          │
-│  │    FISH     │                                                │
+│  │ ADVENTUROUS │  Outside boundary                             │
+│  │    FISH     │  (risk depends on geometry + LOF)             │
 │  └─────────────┘                                                │
-│           ┌─────────────┐                                       │
-│           │  GEOMETRIC  │  Unusual local geometry              │
-│           │  ATYPICAL   │                                       │
-│           └─────────────┘                                       │
 │                    ┌─────────────┐                              │
-│                    │HALLUCINATION│  Far outside, likely invalid│
+│                    │HALLUCINATION│  Bad geometry + LOF outlier │
 │                    └─────────────┘                              │
 └─────────────────────────────────────────────────────────────────┘
 ```
@@ -110,44 +108,31 @@ Think of the reference manifold as **water** - the space of known stable structu
 
 ### 5. Adventurous Fish 🐋
 
-**Location**: Slightly outside manifold
+**Location**: Outside manifold boundary
 
 **Characteristics**:
-- Small positive distance to boundary
-- Has some neighbors in reference set
-- May be extrapolating from known chemistry
+- Negative boundary distance (outside hull)
+- Risk depends on geometry and LOF:
+  - Good geometry → medium risk (valid exploration)
+  - Bad geometry + normal LOF → high risk
+  - Bad geometry + LOF outlier → hallucination
 
-**Interpretation**: Potentially novel materials that extend beyond the known manifold. Higher risk but also higher potential reward.
+**Interpretation**: Potentially novel materials that extend beyond the known manifold. Risk level varies based on geometry consistency.
 
-**Recommended Action**: High priority DFT validation. May represent new material classes.
+**Recommended Action**: Check `risk_level` in results. High priority DFT validation for medium-risk ones.
 
 ---
 
-### 6. Geometric Atypical 🦑
+### 6. Structural Hallucination 👻
 
-**Location**: Has neighbors but unusual geometry
-
-**Characteristics**:
-- High local PCA residual
-- Doesn't fit the local tangent space
-- May be in a high-curvature region
-
-**Interpretation**: Structures with unusual local geometry. Could be genuinely novel configurations or numerical artifacts.
-
-**Recommended Action**: Investigate the geometry. Check for physical plausibility.
-
----
-
-### 7. Structural Hallucination 👻
-
-**Location**: Far outside manifold
+**Location**: Bad geometry AND LOF outlier
 
 **Characteristics**:
-- Large distance to all references
-- Very low density
-- Often fails geometric consistency
+- Geometry inconsistent (high local PCA residual)
+- LOF outlier (density anomaly)
+- No structural support from reference data
 
-**Interpretation**: Likely unphysical structures generated by model errors. No support from known chemistry.
+**Interpretation**: Likely unphysical structures. Both geometry and density indicate problems.
 
 **Recommended Action**: Reject. Not worth computational resources.
 
@@ -157,11 +142,12 @@ Think of the reference manifold as **water** - the space of known stable structu
 |----------|------------------|------------|------|
 | Redundant Fish | Low | High | Very Low |
 | Fish in Water | Medium | High | Low |
-| Frontier Fish | **High** | Medium | Low-Medium |
+| Frontier Fish | **High** | Medium | Low or High* |
 | Edge Fish | Medium-High | Medium | Medium |
-| Adventurous Fish | **High** | Low | Medium-High |
-| Geometric Atypical | Case-by-case | Low | Medium-High |
+| Adventurous Fish | **High** | Low | Medium to High* |
 | Structural Hallucination | None | Very Low | Very High |
+
+*Risk level varies based on geometry consistency - check `risk_level` in results.
 
 ## Using Categories in Practice
 

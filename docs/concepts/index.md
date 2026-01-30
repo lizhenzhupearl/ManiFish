@@ -17,7 +17,7 @@ Traditional metrics like distance or density alone can't capture the nuanced rel
 - At the boundary of physical plausibility (edge)
 - Outside known physics (hallucination)
 
-The 7 fish categories capture these nuances intuitively.
+The 6 fish categories capture these nuances intuitively.
 
 ---
 
@@ -55,7 +55,7 @@ This creates a **model-agnostic** representation where structures from different
 
 ---
 
-## The 7 Fish Categories
+## The 6 Fish Categories
 
 ### 1. Redundant Fish (very_low risk)
 
@@ -73,13 +73,15 @@ This creates a **model-agnostic** representation where structures from different
 
 **Action**: Standard validation pipeline.
 
-### 3. Frontier Fish (low_medium risk)
+### 3. Frontier Fish (low or high risk)
 
-**Location**: Inside manifold, sparse region
+**Location**: Sparse region (low density percentile)
 
-**Interpretation**: Valid region but unexplored. Potentially interesting new materials.
+**Interpretation**: Unexplored territory. Risk depends on geometry consistency:
+- **Good geometry → low risk**: Valid frontier - priority for DFT
+- **Bad geometry → high risk**: Suspicious but worth investigating
 
-**Action**: **Priority for DFT** - high value discovery candidates.
+**Action**: Check `risk_level` in results - prioritize low-risk frontier fish.
 
 ### 4. Edge Fish (medium risk)
 
@@ -89,30 +91,21 @@ This creates a **model-agnostic** representation where structures from different
 
 **Action**: Careful validation - check physical constraints.
 
-### 5. Adventurous Fish (medium_high risk)
+### 5. Adventurous Fish (medium to high risk)
 
-**Location**: Slightly outside manifold
+**Location**: Outside manifold boundary
 
-**Interpretation**: Novel but risky. Might be genuine discovery or artifact.
+**Interpretation**: Novel but risky. Risk depends on geometry and LOF:
+- **Good geometry → medium risk**: Potentially valid exploration
+- **Bad geometry + normal LOF → high risk**: Investigate carefully
 
-**Action**: High priority DFT with careful analysis.
+**Action**: Check `risk_level` - high priority DFT with careful analysis.
 
-### 6. Geometric Atypical (medium_high risk)
+### 6. Structural Hallucination (very_high risk)
 
-**Location**: Inside but unusual local geometry
+**Location**: Bad geometry AND LOF outlier
 
-**Interpretation**: Has neighbors but doesn't fit local tangent space. Possible:
-- High curvature region
-- Novel polymorph
-- Numerical artifact
-
-**Action**: Investigate geometry - potentially interesting if physics checks out.
-
-### 7. Structural Hallucination (very_high risk)
-
-**Location**: Far outside manifold, isolated
-
-**Interpretation**: No physical support. Likely unphysical generated structure.
+**Interpretation**: Both geometric inconsistency and density anomaly. Likely unphysical.
 
 **Action**: **Reject** - don't waste resources.
 

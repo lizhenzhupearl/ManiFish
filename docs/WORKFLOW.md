@@ -6,19 +6,20 @@ This document describes the standard workflow for evaluating AI-generated crysta
 
 ManiFish uses a two-stage evaluation process:
 1. **Embedding Extraction & Transformation**: Extract MLIP embeddings and project to anchor space (Platonic representation)
-2. **Manifold Fish Analysis**: Classify structures into 7 categories based on their position in the manifold
+2. **Manifold Fish Analysis**: Classify structures into 6 categories based on their position in the manifold
 
-## The Seven Fish Categories
+## The Six Fish Categories
 
 | Category | Description | Risk | Action |
 |----------|-------------|------|--------|
 | Redundant Fish | Deep inside, dense region | Very Low | Skip (redundant) |
 | Fish in Water | Inside manifold, normal density | Low | Standard validation |
-| Frontier Fish | Inside manifold, sparse region | Low-Medium | Priority for DFT |
+| Frontier Fish | Sparse region | Low or High* | Priority for DFT |
 | Edge Fish | At manifold boundary | Medium | Careful validation |
-| Adventurous Fish | Slightly outside manifold | Medium-High | High priority DFT |
-| Geometric Atypical | High PCA residual, has neighbors | Medium-High | Investigate geometry |
-| Structural Hallucination | Far outside, no neighbors | Very High | Reject |
+| Adventurous Fish | Outside manifold | Medium to High* | High priority DFT |
+| Structural Hallucination | Bad geometry + LOF outlier | Very High | Reject |
+
+*Risk level varies based on geometry consistency - check `risk_level` in results.
 
 ## Standard Workflow
 
@@ -155,7 +156,7 @@ Each result contains:
 - `spatial_quality`: Combined spatial quality score
 
 ### Classification
-- `category`: One of the 7 fish categories
+- `category`: One of the 6 fish categories
 - `confidence`: Original classification confidence
 - `enhanced_confidence`: Confidence incorporating spatial metrics
 - `risk_level`: Risk assessment
@@ -200,7 +201,7 @@ analyzer = EnhancedManifoldFishAnalyzer.load('analyzer.pkl')
 
 - `manifish/core/spatial_metrics.py`: LDS, CDS, SRSS, RMSC implementations
 - `manifish/core/enhanced_evaluator.py`: Combined distance + spatial evaluator
-- `manifish/core/enhanced_fish_analyzer.py`: 7-fish category classifier with spatial metrics
+- `manifish/core/enhanced_fish_analyzer.py`: 6-fish category classifier with spatial metrics
 - `manifish/core/structure_evaluator.py`: End-to-end structure evaluation
 
 ## Notes

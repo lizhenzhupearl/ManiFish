@@ -1,18 +1,23 @@
 """
 Manifold Fish Analyzer - Core Implementation.
 
-This is the base ManifoldFishAnalyzer that classifies structures into 7 categories
+This is the base ManifoldFishAnalyzer that classifies structures into 6 categories
 based on their position in the manifold. For spatial metrics support, use
 EnhancedManifoldFishAnalyzer from enhanced_fish_analyzer.py.
 
-The Seven Categories:
+The Six Categories:
 1. Redundant Fish       - Deep inside, dense region (very similar to known)
 2. Fish in Water        - Inside manifold, normal density (standard candidate)
-3. Frontier Fish        - Inside manifold, sparse region (exploring new territory)
+3. Frontier Fish        - Inside manifold, sparse region (low/high risk based on geometry)
 4. Edge Fish            - At manifold boundary (on the edge of known physics)
-5. Adventurous Fish     - Slightly outside manifold (potentially novel)
-6. Geometric Atypical   - High local PCA residual but has neighbors
-7. Structural Hallucination - Far outside manifold, no neighbors (likely unphysical)
+5. Adventurous Fish     - Outside manifold (risk based on geometry and LOF)
+6. Structural Hallucination - Bad geometry + LOF outlier (likely unphysical)
+
+Classification Logic:
+- Dense regions: redundant_fish, fish_in_water, edge_fish
+- Sparse regions: frontier_fish (geometry determines risk level)
+- Outside boundary: adventurous_fish (geometry + LOF determine risk)
+- Geometry is the primary validity indicator in frontier/sparse regions
 
 Usage:
     from manifish.core import ManifoldFishAnalyzer
@@ -107,9 +112,9 @@ CATEGORIES = {
         "color": "#2ecc71",  # Green
     },
     "frontier_fish": {
-        "description": "Inside manifold, sparse region - exploring new territory",
-        "risk": "low_medium",
-        "action": "Priority for DFT",
+        "description": "Sparse region - low risk if geometry good, high risk if geometry bad",
+        "risk": "low",  # Base risk; actual risk varies (low or high) based on geometry
+        "action": "Priority for DFT (check geometry for risk level)",
         "color": "#3498db",  # Blue
     },
     "edge_fish": {
@@ -119,22 +124,16 @@ CATEGORIES = {
         "color": "#f39c12",  # Orange
     },
     "adventurous_fish": {
-        "description": "Slightly outside manifold - potentially novel",
-        "risk": "medium_high",
-        "action": "High priority DFT",
+        "description": "Outside manifold - risk based on geometry and LOF",
+        "risk": "medium",  # Base risk; actual risk varies based on geometry
+        "action": "High priority DFT (check risk level)",
         "color": "#9b59b6",  # Purple
     },
-    "geometric_atypical": {
-        "description": "High local PCA residual but has neighbors - novel geometry or high curvature region",
-        "risk": "medium_high",
-        "action": "Investigate geometry, potentially interesting novel structure",
-        "color": "#e74c3c",  # Red
-    },
     "structural_hallucination": {
-        "description": "Far outside manifold, no neighbors - likely unphysical",
+        "description": "Bad geometry + LOF outlier - likely unphysical",
         "risk": "very_high",
         "action": "Reject, no physical support",
-        "color": "#2c3e50",  # Dark gray
+        "color": "#e74c3c",  # Red (was dark gray, now red for emphasis)
     },
 }
 
@@ -775,7 +774,7 @@ class ManifoldFishAnalyzer:
 
                     # Double-check: if normalized residual is very high but distance to nearest is 0,
                     # this is an artifact from PCA not including the reference point itself
-                    # Set residual to 0 to avoid false geometric_atypical classification
+                    # Set residual to 0 to avoid false high-risk classification in sparse regions
                     normalized_residual = residual / effective_spread
                     if normalized_residual > 1.0 and distance_to_nearest < 1e-6:
                         # Point is identical but PCA residual is artificially high
@@ -887,14 +886,14 @@ class ManifoldFishAnalyzer:
         lof_score: float,
     ) -> Tuple[str, float, str]:
         """
-        Classify structure into one of 7 categories.
+        Classify structure into one of 6 categories.
 
         Classification logic:
         0. Near-exact match → redundant_fish (very_low risk)
-        1. Outside boundary → geometry + LOF based classification
+        1. Outside boundary → adventurous_fish or hallucination (geometry + LOF based)
         2. Inside boundary:
-           - Sparse region (frontier): geometry determines risk, LOF as secondary filter
-           - Dense region: edge_fish, redundant_fish, fish_in_water, geometric_atypical
+           - Sparse region: frontier_fish (low risk if geometry good, high risk if bad)
+           - Dense region: edge_fish, redundant_fish, fish_in_water (position-based)
 
         Key insight: In sparse/frontier regions, geometry consistency is the primary
         validity indicator. Good geometry = valid frontier even if LOF is outlier-ish.
@@ -953,13 +952,8 @@ class ManifoldFishAnalyzer:
                     confidence = min(1.0, (self.sparse_threshold - density_percentile) / self.sparse_threshold + 0.4)
                     return "frontier_fish", confidence, "high"
 
-        # 2b. Dense region - original logic for stable categories
-
-        # Geometric atypical check (dense region only)
-        if self.local_geometry_mode != "skip" and not geometry_good:
-            if manifold_distance < self.stability_threshold:
-                confidence = min(1.0, (local_pca_residual - self.geometry_threshold) / 0.3 + 0.5)
-                return "geometric_atypical", confidence, "medium_high"
+        # 2b. Dense region - position-based classification
+        # In dense regions, geometry doesn't determine category (only sparse/outside uses geometry)
 
         # LOF outlier in dense region
         if lof_outlier:
@@ -1647,13 +1641,11 @@ class ManifoldFishAnalyzer:
         print("-" * 80)
 
         if summary['frontier_fish'] > 0:
-            print(f"  -> {summary['frontier_fish']} frontier fish - priority candidates for DFT!")
+            print(f"  -> {summary['frontier_fish']} frontier fish - check risk_level (low=good geometry, high=bad geometry)")
         if summary['adventurous_fish'] > 0:
-            print(f"  -> {summary['adventurous_fish']} adventurous fish - high-risk novel candidates")
+            print(f"  -> {summary['adventurous_fish']} adventurous fish - outside boundary, check risk_level")
         if summary['edge_fish'] > 0:
             print(f"  -> {summary['edge_fish']} edge fish - validate carefully")
-        if summary['geometric_atypical'] > 0:
-            print(f"  -> {summary['geometric_atypical']} geometric atypical - novel geometry, potentially interesting")
         if summary['structural_hallucination_pct'] > 10:
             print(f"  -> {summary['structural_hallucination_pct']:.1f}% structural hallucinations - reject these")
         if summary['redundant_fish_pct'] > 30:

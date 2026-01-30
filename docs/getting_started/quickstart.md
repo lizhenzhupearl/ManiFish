@@ -83,10 +83,9 @@ Total analyzed: 100 structures
 Category Distribution:
   redundant_fish:          12 ( 12.0%) ████████████
   fish_in_water:           45 ( 45.0%) █████████████████████████████████████████████
-  frontier_fish:           18 ( 18.0%) ██████████████████
+  frontier_fish:           22 ( 22.0%) ██████████████████████
   edge_fish:               10 ( 10.0%) ██████████
   adventurous_fish:         8 (  8.0%) ████████
-  geometric_atypical:       4 (  4.0%) ████
   structural_hallucination: 3 (  3.0%) ███
 ```
 

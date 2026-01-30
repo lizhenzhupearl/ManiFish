@@ -13,20 +13,19 @@ import matplotlib.gridspec as gridspec
 from typing import List, Dict, Optional, Tuple
 from collections import defaultdict
 
-# Import category definitions
+# Import category definitions (6 categories - no geometric_atypical)
 CATEGORIES = {
     "redundant_fish": {"color": "#95a5a6", "short": "Redundant"},
     "fish_in_water": {"color": "#2ecc71", "short": "In Water"},
     "frontier_fish": {"color": "#3498db", "short": "Frontier"},
     "edge_fish": {"color": "#f39c12", "short": "Edge"},
     "adventurous_fish": {"color": "#9b59b6", "short": "Adventurous"},
-    "geometric_atypical": {"color": "#e74c3c", "short": "Atypical"},
-    "structural_hallucination": {"color": "#2c3e50", "short": "Hallucination"},
+    "structural_hallucination": {"color": "#e74c3c", "short": "Hallucination"},
 }
 
 CATEGORY_ORDER = [
     "redundant_fish", "fish_in_water", "frontier_fish", "edge_fish",
-    "adventurous_fish", "geometric_atypical", "structural_hallucination"
+    "adventurous_fish", "structural_hallucination"
 ]
 
 SPATIAL_METRICS = ["lds", "cds", "srss", "rmsc", "spatial_quality"]

@@ -20,7 +20,7 @@ Key Features
       :link: api/fish_analyzer
       :link-type: doc
 
-      Classify generated structures into 7 categories based on their position
+      Classify generated structures into 6 categories based on their position
       relative to the reference manifold: from "Fish in Water" (reliable) to
       "Structural Hallucination" (likely unphysical).
 
@@ -72,8 +72,8 @@ Quick Example
    # Find neighbors for each generated material
    neighbor_indices = analyzer.print_neighbors(generated_embeddings)
 
-The Seven Fish Categories
--------------------------
+The Six Fish Categories
+-----------------------
 
 .. list-table::
    :header-rows: 1
@@ -92,23 +92,19 @@ The Seven Fish Categories
      - Low
      - Standard validation
    * - Frontier Fish
-     - Inside manifold, sparse region
-     - Low-Medium
+     - Sparse region (risk varies by geometry)
+     - Low or High
      - Priority for DFT
    * - Edge Fish
      - At manifold boundary
      - Medium
      - Careful validation
    * - Adventurous Fish
-     - Slightly outside manifold
-     - Medium-High
+     - Outside manifold (risk varies)
+     - Medium to High
      - High priority DFT
-   * - Geometric Atypical
-     - High local PCA residual
-     - Medium-High
-     - Investigate geometry
    * - Structural Hallucination
-     - Far outside manifold
+     - Bad geometry + LOF outlier
      - Very High
      - Reject
 
