@@ -158,7 +158,7 @@ class ManifoldFishResult:
     # Density metrics
     local_density: float          # k-NN density estimate
     density_percentile: float     # Percentile vs reference distribution (0-100)
-    lof_score: float = 0.0        # Local Outlier Factor score (≈-1 normal, <<-1 outlier)
+    lof_score: float              # Local Outlier Factor score (≈-1 normal, <<-1 outlier)
 
     # Geometry consistency
     local_pca_residual: float     # Reconstruction error from local tangent (normalized)
