@@ -31,9 +31,10 @@ Metrics Interpretation:
 - density_percentile: Relative density compared to reference
   → Physical: Relates to how "typical" the structure is
 
-- local_pca_residual: Geometric consistency of local environments
-  → High = local geometry doesn't match neighborhood patterns
-  → Physical: May indicate strained/unstable local coordinations
+- local_pca_residual: Local similarity indicator (NOT used in classification)
+  → Low = neighbors have similar composition (high local similarity)
+  → High = neighbors have diverse compositions (low local similarity)
+  → Note: This is informational only, not a validity metric
 
 Physical Quantities to Correlate:
 ---------------------------------
@@ -85,23 +86,22 @@ CATEGORIES = [
 ]
 
 # Risk scores for voting (lower = safer)
-# Note: frontier_fish and adventurous_fish have variable risk based on geometry
 CATEGORY_RISK_SCORES = {
     "redundant_fish": 0.0,
     "fish_in_water": 0.2,
-    "frontier_fish": 0.4,  # Base; actual risk varies (low or high) based on geometry
+    "frontier_fish": 0.4,  # Novel sparse region
     "edge_fish": 0.5,
-    "adventurous_fish": 0.6,  # Base; actual risk varies based on geometry and LOF
-    "structural_hallucination": 1.0,  # Bad geometry + LOF outlier
+    "adventurous_fish": 0.6,  # Outside manifold, normal LOF
+    "structural_hallucination": 1.0,  # LOF outlier
 }
 
 # Stability likelihood (for weighted averaging)
 CATEGORY_STABILITY = {
     "redundant_fish": 0.95,
     "fish_in_water": 0.85,
-    "frontier_fish": 0.70,  # Varies based on geometry
+    "frontier_fish": 0.70,  # Novel territory
     "edge_fish": 0.50,
-    "adventurous_fish": 0.35,  # Varies based on geometry
+    "adventurous_fish": 0.35,  # Outside manifold
     "structural_hallucination": 0.05,  # No support
 }
 

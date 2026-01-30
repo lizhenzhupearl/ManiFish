@@ -14,12 +14,10 @@ ManiFish uses a two-stage evaluation process:
 |----------|-------------|------|--------|
 | Redundant Fish | Deep inside, dense region | Very Low | Skip (redundant) |
 | Fish in Water | Inside manifold, normal density | Low | Standard validation |
-| Frontier Fish | Sparse region | Low or High* | Priority for DFT |
+| Frontier Fish | Sparse region (novel territory) | Low | Priority for DFT |
 | Edge Fish | At manifold boundary | Medium | Careful validation |
-| Adventurous Fish | Outside manifold | Medium to High* | High priority DFT |
-| Structural Hallucination | Bad geometry + LOF outlier | Very High | Reject |
-
-*Risk level varies based on geometry consistency - check `risk_level` in results.
+| Adventurous Fish | Outside manifold, normal LOF | Medium | High priority DFT |
+| Structural Hallucination | LOF outlier | Very High | Reject |
 
 ## Standard Workflow
 
@@ -146,7 +144,7 @@ Each result contains:
 - `boundary_distance`: Distance to boundary (+ inside, - outside)
 - `local_density`: k-NN density estimate
 - `density_percentile`: Percentile vs reference (0-100)
-- `local_pca_residual`: Geometry consistency
+- `local_pca_residual`: Local similarity indicator (low=similar neighbors, high=diverse)
 
 ### NEW: Spatial Metrics
 - `lds`: Local vs Distant Similarity (higher = better clustering)
@@ -212,4 +210,6 @@ analyzer = EnhancedManifoldFishAnalyzer.load('analyzer.pkl')
 
 3. **Spatial metrics complement distance metrics**: The enhanced confidence score combines traditional manifold distance with spatial structure quality.
 
-4. **Memory for large datasets**: For very large reference sets (>100k), consider using `local_geometry_mode='skip'` to reduce memory usage.
+4. **Memory for large datasets**: For very large reference sets (>100k), consider using `local_geometry_mode='skip'` to reduce memory usage (skips local_pca_residual computation).
+
+5. **local_pca_residual is informational only**: This metric indicates local chemical similarity (low = similar neighbors, high = diverse neighbors) but is NOT used in classification. It can help identify clusters of similar compositions.

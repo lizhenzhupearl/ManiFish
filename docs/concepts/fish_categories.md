@@ -27,7 +27,7 @@ Think of the reference manifold as **water** - the space of known stable structu
 │                    MANIFOLD INTERIOR (SPARSE)                   │
 │                    ┌─────────────┐                              │
 │                    │  FRONTIER   │  Sparse region, exploring   │
-│                    │    FISH     │  (risk depends on geometry) │
+│                    │    FISH     │  (novel territory)          │
 │                    └─────────────┘                              │
 ├─────────────────────────────────────────────────────────────────┤
 │                    MANIFOLD BOUNDARY                            │
@@ -37,11 +37,11 @@ Think of the reference manifold as **water** - the space of known stable structu
 ├─────────────────────────────────────────────────────────────────┤
 │                    OUTSIDE MANIFOLD                             │
 │  ┌─────────────┐                                                │
-│  │ ADVENTUROUS │  Outside boundary                             │
-│  │    FISH     │  (risk depends on geometry + LOF)             │
+│  │ ADVENTUROUS │  Outside boundary, normal LOF                 │
+│  │    FISH     │  (exploration candidate)                      │
 │  └─────────────┘                                                │
 │                    ┌─────────────┐                              │
-│                    │HALLUCINATION│  Bad geometry + LOF outlier │
+│                    │HALLUCINATION│  LOF outlier                │
 │                    └─────────────┘                              │
 └─────────────────────────────────────────────────────────────────┘
 ```
@@ -112,27 +112,25 @@ Think of the reference manifold as **water** - the space of known stable structu
 
 **Characteristics**:
 - Negative boundary distance (outside hull)
-- Risk depends on geometry and LOF:
-  - Good geometry → medium risk (valid exploration)
-  - Bad geometry + normal LOF → high risk
-  - Bad geometry + LOF outlier → hallucination
+- Normal LOF score (not a density outlier)
+- Exploring beyond known territory
 
-**Interpretation**: Potentially novel materials that extend beyond the known manifold. Risk level varies based on geometry consistency.
+**Interpretation**: Potentially novel materials that extend beyond the known manifold. These are exploration candidates that deserve validation.
 
-**Recommended Action**: Check `risk_level` in results. High priority DFT validation for medium-risk ones.
+**Recommended Action**: High priority for DFT validation. Check `risk_level` in results.
 
 ---
 
 ### 6. Structural Hallucination 👻
 
-**Location**: Bad geometry AND LOF outlier
+**Location**: LOF outlier (any location)
 
 **Characteristics**:
-- Geometry inconsistent (high local PCA residual)
 - LOF outlier (density anomaly)
 - No structural support from reference data
+- Can occur inside or outside manifold
 
-**Interpretation**: Likely unphysical structures. Both geometry and density indicate problems.
+**Interpretation**: Likely unphysical structures. The density anomaly indicates the structure doesn't fit the local neighborhood pattern.
 
 **Recommended Action**: Reject. Not worth computational resources.
 
@@ -142,12 +140,10 @@ Think of the reference manifold as **water** - the space of known stable structu
 |----------|------------------|------------|------|
 | Redundant Fish | Low | High | Very Low |
 | Fish in Water | Medium | High | Low |
-| Frontier Fish | **High** | Medium | Low or High* |
+| Frontier Fish | **High** | Medium | Low |
 | Edge Fish | Medium-High | Medium | Medium |
-| Adventurous Fish | **High** | Low | Medium to High* |
+| Adventurous Fish | **High** | Low | Medium |
 | Structural Hallucination | None | Very Low | Very High |
-
-*Risk level varies based on geometry consistency - check `risk_level` in results.
 
 ## Using Categories in Practice
 

@@ -8,16 +8,21 @@ EnhancedManifoldFishAnalyzer from enhanced_fish_analyzer.py.
 The Six Categories:
 1. Redundant Fish       - Deep inside, dense region (very similar to known)
 2. Fish in Water        - Inside manifold, normal density (standard candidate)
-3. Frontier Fish        - Inside manifold, sparse region (low/high risk based on geometry)
+3. Frontier Fish        - Inside manifold, sparse region (novel territory)
 4. Edge Fish            - At manifold boundary (on the edge of known physics)
-5. Adventurous Fish     - Outside manifold (risk based on geometry and LOF)
-6. Structural Hallucination - Bad geometry + LOF outlier (likely unphysical)
+5. Adventurous Fish     - Outside manifold, normal LOF (exploration candidate)
+6. Structural Hallucination - LOF outlier (likely unphysical)
 
 Classification Logic:
-- Dense regions: redundant_fish, fish_in_water, edge_fish
-- Sparse regions: frontier_fish (geometry determines risk level)
-- Outside boundary: adventurous_fish (geometry + LOF determine risk)
-- Geometry is the primary validity indicator in frontier/sparse regions
+- Dense regions: redundant_fish, fish_in_water, edge_fish (position-based)
+- Sparse regions: frontier_fish (LOF determines hallucination)
+- Outside boundary: adventurous_fish or hallucination (LOF-based)
+- LOF (Local Outlier Factor) is the primary validity indicator
+
+Note: local_pca_residual is computed as a LOCAL SIMILARITY indicator
+(low = similar neighbors, high = diverse neighbors) but is NOT used
+in classification. It provides useful information about neighbor
+composition similarity.
 
 Usage:
     from manifish.core import ManifoldFishAnalyzer
@@ -112,9 +117,9 @@ CATEGORIES = {
         "color": "#2ecc71",  # Green
     },
     "frontier_fish": {
-        "description": "Sparse region - low risk if geometry good, high risk if geometry bad",
-        "risk": "low",  # Base risk; actual risk varies (low or high) based on geometry
-        "action": "Priority for DFT (check geometry for risk level)",
+        "description": "Sparse region inside manifold - novel territory",
+        "risk": "low",
+        "action": "Priority for DFT",
         "color": "#3498db",  # Blue
     },
     "edge_fish": {
@@ -124,16 +129,16 @@ CATEGORIES = {
         "color": "#f39c12",  # Orange
     },
     "adventurous_fish": {
-        "description": "Outside manifold - risk based on geometry and LOF",
-        "risk": "medium",  # Base risk; actual risk varies based on geometry
-        "action": "High priority DFT (check risk level)",
+        "description": "Outside manifold, normal LOF - exploration candidate",
+        "risk": "medium",
+        "action": "High priority DFT",
         "color": "#9b59b6",  # Purple
     },
     "structural_hallucination": {
-        "description": "Bad geometry + LOF outlier - likely unphysical",
+        "description": "LOF outlier - likely unphysical",
         "risk": "very_high",
         "action": "Reject, no physical support",
-        "color": "#e74c3c",  # Red (was dark gray, now red for emphasis)
+        "color": "#e74c3c",  # Red
     },
 }
 
@@ -160,9 +165,9 @@ class ManifoldFishResult:
     density_percentile: float     # Percentile vs reference distribution (0-100)
     lof_score: float              # Local Outlier Factor score (≈-1 normal, <<-1 outlier)
 
-    # Geometry consistency
-    local_pca_residual: float     # Reconstruction error from local tangent (normalized)
-    geometry_consistent: bool     # Below threshold?
+    # Local similarity indicator (NOT used in classification)
+    local_pca_residual: float     # Low = similar neighbors, High = diverse neighbors
+    geometry_consistent: bool     # Legacy field: low residual (similar neighbors)?
 
     # Uncertainty (future)
     ensemble_variance: float = 0.0  # Placeholder
@@ -884,7 +889,7 @@ class ManifoldFishAnalyzer:
         boundary_distance: float,
         local_density: float,
         density_percentile: float,
-        local_pca_residual: float,
+        local_pca_residual: float,  # Kept for API compatibility, not used in classification
         lof_score: float,
     ) -> Tuple[str, float, str]:
         """
@@ -892,20 +897,22 @@ class ManifoldFishAnalyzer:
 
         Classification logic:
         0. Near-exact match → redundant_fish (very_low risk)
-        1. Outside boundary → adventurous_fish or hallucination (geometry + LOF based)
+        1. Outside boundary → adventurous_fish or hallucination (LOF-based)
         2. Inside boundary:
-           - Sparse region: frontier_fish (low risk if geometry good, high risk if bad)
+           - Sparse region: frontier_fish (risk based on LOF)
            - Dense region: edge_fish, redundant_fish, fish_in_water (position-based)
 
-        Key insight: In sparse/frontier regions, geometry consistency is the primary
-        validity indicator. Good geometry = valid frontier even if LOF is outlier-ish.
+        Note: local_pca_residual is computed but NOT used in classification.
+        It indicates local chemical similarity (low = similar neighbors) rather
+        than geometric consistency. Keep it as informational metric only.
         """
+        # Note: local_pca_residual parameter kept for API compatibility
+        # but not used in classification logic (indicates local similarity, not validity)
+        _ = local_pca_residual
 
         near_exact_threshold = 0.05  # Very close to a reference point
 
         # Helper flags
-        geometry_good = (self.local_geometry_mode == "skip" or
-                        local_pca_residual <= self.geometry_threshold)
         lof_outlier = lof_score < self.outlier_threshold
         is_sparse = density_percentile < self.sparse_threshold
 
@@ -916,46 +923,34 @@ class ManifoldFishAnalyzer:
 
         # 1. Outside boundary
         if boundary_distance < 0:
-            if geometry_good:
-                # Good geometry outside = adventurous exploration
+            # Check LOF for hallucination vs adventurous
+            if lof_outlier:
+                confidence = min(1.0, abs(lof_score - self.outlier_threshold) / 2 + 0.5)
+                return "structural_hallucination", confidence, "very_high"
+            else:
+                # Outside but LOF normal = adventurous exploration
                 if abs(boundary_distance) < self.edge_margin * 2:
                     confidence = min(1.0, abs(boundary_distance) / self.edge_margin + 0.3)
                     return "adventurous_fish", confidence, "medium"
                 else:
-                    # Far outside but good geometry - still adventurous but higher risk
+                    # Far outside - higher risk adventurous
                     confidence = min(1.0, abs(boundary_distance) / (self.edge_margin * 4) + 0.5)
                     return "adventurous_fish", confidence, "medium_high"
-            else:
-                # Bad geometry outside
-                if lof_outlier:
-                    confidence = min(1.0, abs(lof_score - self.outlier_threshold) / 2 + 0.5)
-                    return "structural_hallucination", confidence, "very_high"
-                else:
-                    # Bad geometry but LOF normal - high risk adventurous
-                    confidence = min(1.0, abs(boundary_distance) / self.edge_margin + 0.4)
-                    return "adventurous_fish", confidence, "high"
 
         # 2. Inside boundary
 
-        # 2a. Sparse region (frontier) - geometry is primary indicator
+        # 2a. Sparse region (frontier) - LOF determines risk
         if is_sparse:
-            if geometry_good:
-                # Good geometry in sparse = valid frontier (even if LOF outlier)
+            if lof_outlier:
+                # Sparse + LOF outlier → hallucination
+                confidence = min(1.0, abs(lof_score - self.outlier_threshold) / 2 + 0.5)
+                return "structural_hallucination", confidence, "very_high"
+            else:
+                # Sparse but LOF normal → valid frontier
                 confidence = min(1.0, (self.sparse_threshold - density_percentile) / self.sparse_threshold + 0.5)
                 return "frontier_fish", confidence, "low"
-            else:
-                # Bad geometry in sparse
-                if lof_outlier:
-                    # Both geometry bad AND density anomaly → hallucination
-                    confidence = min(1.0, abs(lof_score - self.outlier_threshold) / 2 + 0.5)
-                    return "structural_hallucination", confidence, "very_high"
-                else:
-                    # Bad geometry but fits local density → high risk frontier
-                    confidence = min(1.0, (self.sparse_threshold - density_percentile) / self.sparse_threshold + 0.4)
-                    return "frontier_fish", confidence, "high"
 
         # 2b. Dense region - position-based classification
-        # In dense regions, geometry doesn't determine category (only sparse/outside uses geometry)
 
         # LOF outlier in dense region
         if lof_outlier:
@@ -1375,11 +1370,11 @@ class ManifoldFishAnalyzer:
             print(f"    Density Percentile:  {r.density_percentile:.1f}%  (vs reference distribution)")
             print(f"    LOF Score:           {r.lof_score:.4f}  (≈-1 normal, <<-1 outlier)")
 
-            # Geometry consistency
-            print(f"\n  GEOMETRY CONSISTENCY:")
-            print(f"    Local PCA Residual:  {r.local_pca_residual:.4f}  (reconstruction error)")
-            consistent_str = "Yes" if r.geometry_consistent else "No (ATYPICAL GEOMETRY)"
-            print(f"    Geometry Consistent: {consistent_str}")
+            # Local similarity indicator (not used in classification)
+            print(f"\n  LOCAL SIMILARITY (informational only):")
+            print(f"    Local PCA Residual:  {r.local_pca_residual:.4f}  (low=similar neighbors, high=diverse)")
+            similar_str = "Yes (similar neighbors)" if r.geometry_consistent else "No (diverse neighbors)"
+            print(f"    High Local Similarity: {similar_str}")
 
             # Ensemble variance (if available)
             if r.ensemble_variance > 0:
@@ -1575,7 +1570,7 @@ class ManifoldFishAnalyzer:
             "mean_local_density": np.mean([r.local_density for r in results]),
             "mean_density_percentile": np.mean([r.density_percentile for r in results]),
             "mean_local_pca_residual": np.mean([r.local_pca_residual for r in results]),
-            "geometry_consistent_pct": 100 * sum(r.geometry_consistent for r in results) / len(results),
+            "high_local_similarity_pct": 100 * sum(r.geometry_consistent for r in results) / len(results),
         }
 
         return summary
@@ -1626,7 +1621,7 @@ class ManifoldFishAnalyzer:
         print(f"  Mean boundary distance:    {metrics['mean_boundary_distance']:>8.3f}")
         print(f"  Mean density percentile:   {metrics['mean_density_percentile']:>8.1f}%")
         print(f"  Mean local PCA residual:   {metrics['mean_local_pca_residual']:>8.3f}")
-        print(f"  Geometry consistent:       {metrics['geometry_consistent_pct']:>8.1f}%")
+        print(f"  High local similarity:     {metrics['high_local_similarity_pct']:>8.1f}%")
 
         print("\n" + "-" * 80)
         print("Thresholds Used:")
@@ -1634,7 +1629,7 @@ class ManifoldFishAnalyzer:
         thresholds = summary["thresholds"]
         print(f"  Stability threshold:       {thresholds['stability']:>8.2f}")
         print(f"  Outlier threshold (LOF):   {thresholds['outlier']:>8.2f}")
-        print(f"  Geometry threshold:        {thresholds['geometry']:>8.2f}")
+        print(f"  Similarity threshold:      {thresholds['geometry']:>8.2f}  (informational)")
         print(f"  Sparse percentile:         {thresholds['sparse']:>8.1f}%")
         print(f"  Depth percentile:          {thresholds['depth']:>8.1f}%")
         print(f"  Edge margin:               {thresholds['edge_margin']:>8.2f}")
@@ -1644,7 +1639,7 @@ class ManifoldFishAnalyzer:
         print("-" * 80)
 
         if summary['frontier_fish'] > 0:
-            print(f"  -> {summary['frontier_fish']} frontier fish - check risk_level (low=good geometry, high=bad geometry)")
+            print(f"  -> {summary['frontier_fish']} frontier fish - novel sparse region, priority for DFT")
         if summary['adventurous_fish'] > 0:
             print(f"  -> {summary['adventurous_fish']} adventurous fish - outside boundary, check risk_level")
         if summary['edge_fish'] > 0:
@@ -1730,11 +1725,11 @@ class ManifoldFishAnalyzer:
                            c=colors[cat], label=cat.replace("_", " ").title(),
                            alpha=0.6, s=20)
         ax3.axhline(y=self.geometry_threshold, color='red', linestyle='--', alpha=0.5,
-                   label=f'Geometry threshold ({self.geometry_threshold})')
+                   label=f'Similarity threshold ({self.geometry_threshold})')
         ax3.axvline(x=self.sparse_threshold, color='blue', linestyle=':', alpha=0.5)
         ax3.set_xlabel("Density Percentile", fontsize=10)
-        ax3.set_ylabel("Local PCA Residual", fontsize=10)
-        ax3.set_title("Density vs Geometry Consistency", fontsize=12, fontweight='bold')
+        ax3.set_ylabel("Local PCA Residual (low=similar)", fontsize=10)
+        ax3.set_title("Density vs Local Similarity", fontsize=12, fontweight='bold')
         ax3.legend(loc='upper right', fontsize=7)
 
         # 4. Histogram of manifold distances by category
@@ -1751,7 +1746,7 @@ class ManifoldFishAnalyzer:
         ax4.set_title("Manifold Distance Distribution", fontsize=12, fontweight='bold')
         ax4.legend(fontsize=7)
 
-        # 5. Histogram of local PCA residuals
+        # 5. Histogram of local PCA residuals (local similarity)
         ax5 = axes[1, 1]
         for cat in CATEGORIES.keys():
             mask = categories == cat
@@ -1759,10 +1754,10 @@ class ManifoldFishAnalyzer:
                 ax5.hist(local_residual[mask], bins=30, alpha=0.5, color=colors[cat],
                         label=cat.replace("_", " ").title())
         ax5.axvline(x=self.geometry_threshold, color='red', linestyle='--',
-                   label=f'Geometry threshold ({self.geometry_threshold})')
-        ax5.set_xlabel("Local PCA Residual", fontsize=10)
+                   label=f'Similarity threshold ({self.geometry_threshold})')
+        ax5.set_xlabel("Local PCA Residual (low=similar)", fontsize=10)
         ax5.set_ylabel("Count", fontsize=10)
-        ax5.set_title("Geometry Consistency Distribution", fontsize=12, fontweight='bold')
+        ax5.set_title("Local Similarity Distribution", fontsize=12, fontweight='bold')
         ax5.legend(fontsize=7)
 
         # 6. Depth vs Boundary distance
@@ -1797,7 +1792,7 @@ class ManifoldFishAnalyzer:
         ax7.set_title("Density vs LOF (Sparse Region Decision)", fontsize=12, fontweight='bold')
         ax7.legend(loc='lower right', fontsize=7)
 
-        # 8. Local PCA residual vs LOF score (geometry + LOF interaction)
+        # 8. Local PCA residual vs LOF score (informational)
         ax8 = axes[2, 1]
         for cat in CATEGORIES.keys():
             mask = categories == cat
@@ -1808,10 +1803,10 @@ class ManifoldFishAnalyzer:
         ax8.axhline(y=self.outlier_threshold, color='red', linestyle='--', alpha=0.5,
                    label=f'LOF threshold ({self.outlier_threshold})')
         ax8.axvline(x=self.geometry_threshold, color='green', linestyle=':', alpha=0.5,
-                   label=f'Geometry threshold ({self.geometry_threshold})')
-        ax8.set_xlabel("Local PCA Residual", fontsize=10)
+                   label=f'Similarity threshold ({self.geometry_threshold})')
+        ax8.set_xlabel("Local PCA Residual (low=similar)", fontsize=10)
         ax8.set_ylabel("LOF Score (more negative = outlier)", fontsize=10)
-        ax8.set_title("Geometry vs LOF (Secondary Filter)", fontsize=12, fontweight='bold')
+        ax8.set_title("Local Similarity vs LOF", fontsize=12, fontweight='bold')
         ax8.legend(loc='lower right', fontsize=7)
 
         # 9. Risk level distribution
@@ -1997,8 +1992,8 @@ def example_usage():
     gen_edge += np.array([1.2, 0.0, 0.0])
     gen_adventurous = np.random.randn(40, dim) * 0.4  # Slightly outside
     gen_adventurous += np.array([1.8, 0.5, 0.3])
-    gen_hallucination = np.random.randn(30, dim) * 0.3  # Inside but wrong geometry
-    gen_hallucination[:, 2] += np.random.randn(30) * 2  # Add noise in one direction
+    gen_hallucination = np.random.randn(30, dim) * 0.3  # Designed to be LOF outliers
+    gen_hallucination[:, 2] += np.random.randn(30) * 2  # Add noise to create density anomaly
     gen_invalid = np.random.randn(30, dim) * 1.5 + np.array([4.0, 3.0, 2.0])
 
     generated_embeddings = np.vstack([
@@ -2028,7 +2023,7 @@ def example_usage():
         reference_ids=reference_ids,
         n_neighbors=10,
         boundary_method="auto",  # Will use alpha_shape for 3D
-        local_geometry_mode="fast",  # "full" (slow), "fast" (recommended), "skip" (no geometry check)
+        local_geometry_mode="fast",  # "full" (slow), "fast" (recommended), "skip" (no similarity calc)
         curvature_adjusted=True,  # Adjust for U-shaped manifolds (high curvature regions)
         stability_threshold=0.5,
         geometry_threshold=0.3,
@@ -2612,9 +2607,9 @@ def example_with_materials_embeddings():
         # Boundary method: "auto" picks best for dimension
         boundary_method="auto",
 
-        # Local geometry mode:
+        # Local similarity mode (for local_pca_residual, informational only):
         # - "fast": Lazy caching, recommended for large n_ref (default)
-        # - "skip": Disable geometry check for fastest analysis
+        # - "skip": Disable local similarity computation for fastest analysis
         # - "full": Most accurate but slow
         local_geometry_mode="fast",
 
@@ -2624,7 +2619,7 @@ def example_with_materials_embeddings():
 
         # Thresholds (tune based on your data)
         stability_threshold=0.5,     # Manifold distance threshold
-        geometry_threshold=0.3,      # Local PCA residual threshold
+        geometry_threshold=0.3,      # Local similarity threshold (informational)
         sparse_threshold=20.0,       # Below 20th percentile = sparse
         edge_margin=0.1,             # Boundary margin
     )

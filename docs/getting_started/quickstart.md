@@ -173,9 +173,9 @@ Material: gen-0  (index: 0)
     Local Density:       0.0023
     Density Percentile:  15.2%  (vs reference distribution)
 
-  GEOMETRY CONSISTENCY:
-    Local PCA Residual:  0.0150  (reconstruction error)
-    Geometry Consistent: Yes
+  LOCAL SIMILARITY (informational only):
+    Local PCA Residual:  0.0150  (low=similar neighbors, high=diverse)
+    High Local Similarity: Yes (similar neighbors)
 
   NEAREST REFERENCES:
     Top 3: mp-123, mp-456, mp-789

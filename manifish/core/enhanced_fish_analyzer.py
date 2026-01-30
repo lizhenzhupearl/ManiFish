@@ -8,10 +8,14 @@ while maintaining the same 6-fish category output format.
 The Six Categories (inherited from ManifoldFishAnalyzer):
 1. Redundant Fish       - Deep inside, dense region (very similar to known)
 2. Fish in Water        - Inside manifold, normal density (standard candidate)
-3. Frontier Fish        - Sparse region (low/high risk based on geometry)
+3. Frontier Fish        - Inside manifold, sparse region (novel territory)
 4. Edge Fish            - At manifold boundary (on the edge of known physics)
-5. Adventurous Fish     - Outside manifold (risk based on geometry and LOF)
-6. Structural Hallucination - Bad geometry + LOF outlier (likely unphysical)
+5. Adventurous Fish     - Outside manifold, normal LOF (exploration candidate)
+6. Structural Hallucination - LOF outlier (likely unphysical)
+
+Note: local_pca_residual is computed as a LOCAL SIMILARITY indicator
+(low = similar neighbors, high = diverse neighbors) but is NOT used
+in classification. See base ManifoldFishAnalyzer for details.
 
 NEW: Spatial metrics are computed for each structure and can optionally
 influence the confidence scores and classification.
@@ -76,9 +80,9 @@ class EnhancedManifoldFishResult:
     local_density: float
     density_percentile: float
 
-    # Geometry consistency (from base)
-    local_pca_residual: float
-    geometry_consistent: bool
+    # Local similarity indicator (from base, NOT used in classification)
+    local_pca_residual: float  # Low = similar neighbors, High = diverse neighbors
+    geometry_consistent: bool  # Legacy: low residual (similar neighbors)?
 
     # NEW: Spatial structure metrics
     spatial_metrics: SpatialMetricsResult
