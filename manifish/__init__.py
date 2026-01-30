@@ -13,7 +13,7 @@ improved stability prediction based on local manifold structure.
 """
 
 __version__ = "0.2.0"
-__author__ = "Zhen Zhu"
+__author__ = "Zhenzhu Li"
 
 # Core anchor selection
 from manifish.core.anchors import (
