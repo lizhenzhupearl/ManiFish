@@ -232,6 +232,7 @@ class ManifoldFishAnalyzer:
         # Neighbor parameters
         n_neighbors: int = 10,
         n_neighbors_local_pca: Optional[int] = None,  # Default: max(15, 2*n_neighbors)
+        n_components_local_pca: Optional[int] = None,  # Default: dim - 1 (try 3-10 for analysis)
 
         # Boundary method
         boundary_method: Literal["convex_hull", "alpha_shape", "one_class_svm", "auto"] = "auto",
@@ -265,6 +266,9 @@ class ManifoldFishAnalyzer:
             n_neighbors: Number of neighbors for distance/density calculation
             n_neighbors_local_pca: Number of neighbors for local tangent estimation
                                    Default: max(15, 2*n_neighbors)
+            n_components_local_pca: Number of PCA components for local tangent plane
+                                    Default: dim - 1 (full tangent space)
+                                    Try 3-10 to analyze residuals at different dimensionalities
             boundary_method: Method for boundary detection
                            "convex_hull" - Fast, simple (may be too loose)
                            "alpha_shape" - Good for non-convex (dim <= 3)
@@ -302,6 +306,8 @@ class ManifoldFishAnalyzer:
         self.n_neighbors = min(n_neighbors, self.n_reference - 1)
         self.n_neighbors_local_pca = n_neighbors_local_pca or max(15, 2 * self.n_neighbors)
         self.n_neighbors_local_pca = min(self.n_neighbors_local_pca, self.n_reference - 1)
+        # PCA components: None means use dim - 1 (full tangent), or specify 3-10 for analysis
+        self.n_components_local_pca = n_components_local_pca
 
         # Boundary method
         if boundary_method == "auto":
@@ -501,8 +507,12 @@ class ManifoldFishAnalyzer:
         if len(neighbors) < 5:
             return 0.0
 
-        # Number of components for local tangent (dim - 1)
-        n_components = min(self.dim - 1, len(neighbors) - 1)
+        # Number of components for local tangent
+        # Use configured value, or default to dim - 1 (full tangent space)
+        if self.n_components_local_pca is not None:
+            n_components = min(self.n_components_local_pca, len(neighbors) - 1, self.dim - 1)
+        else:
+            n_components = min(self.dim - 1, len(neighbors) - 1)
         n_components = max(1, n_components)
 
         # Fit local PCA on neighbors
@@ -846,7 +856,12 @@ class ManifoldFishAnalyzer:
             return None, 1.0, 0.0
 
         neighbors = self.reference[neighbor_idx]
-        n_components = min(self.dim - 1, len(neighbor_idx) - 1)
+        # Number of components for local tangent
+        # Use configured value, or default to dim - 1 (full tangent space)
+        if self.n_components_local_pca is not None:
+            n_components = min(self.n_components_local_pca, len(neighbor_idx) - 1, self.dim - 1)
+        else:
+            n_components = min(self.dim - 1, len(neighbor_idx) - 1)
         n_components = max(1, n_components)
 
         try:
@@ -855,10 +870,10 @@ class ManifoldFishAnalyzer:
             full_pca.fit(neighbors)
 
             # Compute curvature from eigenvalue distribution
-            # Curvature = fraction of variance NOT explained by tangent plane (dim-1 components)
+            # Curvature = fraction of variance NOT explained by configured tangent plane
             explained_ratios = full_pca.explained_variance_ratio_
             if len(explained_ratios) > n_components:
-                # Variance explained by tangent plane (first dim-1 components)
+                # Variance explained by tangent plane (first n_components)
                 tangent_variance = np.sum(explained_ratios[:n_components])
                 # Curvature = unexplained variance (how much the manifold curves away)
                 local_curvature = 1.0 - tangent_variance
